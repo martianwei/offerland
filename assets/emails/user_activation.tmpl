@@ -1,0 +1,40 @@
+{{define "subject"}}Welcome to OfferLand!{{end}}
+
+{{define "plainBody"}}
+Hi,
+
+Thanks for signing up for a Greenlight account. We're excited to have you on board!
+
+For future reference, your user ID number is {{.userID}}.
+
+Please send a request to the `PUT /v1/users/activated` endpoint with the following JSON
+body to activate your account:
+
+{"token": "{{.activationToken}}"}
+
+Please note that this is a one-time use token and it will expire in 3 days.
+
+Thanks,
+
+The OfferLand Team
+{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+<body> 
+    <p>Hi {{.username}}!</p>
+    <p>Thanks for signing up <Strong>OfferLand</Strong>
+    <p>Here is your activation code</p>
+    {{.passcode}}</a>
+    <p>Please note that this is a one-time use token and it will expire in 3 days.</p>
+    <p>Thanks,</p>
+    <p>The OfferLand Team</p>
+</body>
+
+</html>
+{{end}}
