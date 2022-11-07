@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pquerna/otp"
-	"github.com/pquerna/otp/totp"
 )
 
 // Define a Token struct to hold the data for an individual token. This includes the
@@ -75,7 +73,7 @@ type TokenModel struct {
 // The New() method is a shortcut which creates a new Token struct and then inserts the
 // data in the tokens table.
 func (m TokenModel) NewToken(userID uuid.UUID, ttl time.Duration) (*Token, error) {
-	passcode, err := m.generatePasscode(userID.String())
+	passcode, err := m.generatePasscode()
 	if err != nil {
 		return nil, err
 	}
@@ -87,27 +85,29 @@ func (m TokenModel) NewToken(userID uuid.UUID, ttl time.Duration) (*Token, error
 	return token, err
 }
 
-func (m TokenModel) generatePasscode(userID string) (string, error) {
-	secret := base32.StdEncoding.EncodeToString([]byte(userID))
-	passcode, err := totp.GenerateCodeCustom(secret, time.Now(), totp.ValidateOpts{
-		Period:    300,
-		Skew:      1,
-		Digits:    otp.DigitsSix,
-		Algorithm: otp.AlgorithmSHA512,
-	})
+func (m TokenModel) generatePasscode() (string, error) {
+	const otpChars = "1234567890"
+	var length = 6
+
+	buffer := make([]byte, length)
+	_, err := rand.Read(buffer)
 	if err != nil {
 		return "", err
 	}
-	return passcode, nil
+
+	otpCharsLength := len(otpChars)
+	for i := 0; i < length; i++ {
+		buffer[i] = otpChars[int(buffer[i])%otpCharsLength]
+	}
+
+	return string(buffer), nil
 }
 
 func (m TokenModel) Validate(passcode string, tokenPlaintext string) (bool, error) {
 	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
 	query := `
 		SELECT passcode
-		FROM users
-		INNER JOIN tokens
-		ON users.user_id = tokens.user_id
+		FROM tokens
 		WHERE tokens.hash = $1
 		AND tokens.expiry > $2`
 
