@@ -55,13 +55,13 @@ func (app *application) userSignup(c *gin.Context) {
 		return
 	}
 	input.Validator.CheckField(validator.Matches(input.Email, validator.RgxEmail), "Email", "Must be a valid email address")
-	input.Validator.CheckField(existingEmail == nil, "Email", "Email is already in use")
+	input.Validator.CheckField(existingEmail == nil, "email", "Email is already in use")
 
-	input.Validator.CheckField(existingUsername == nil, "Username", "Username is already in use")
+	input.Validator.CheckField(existingUsername == nil, "username", "Username is already in use")
 
-	input.Validator.CheckField(len(input.Password) >= 8, "Password", "Password is too short, must be at least 8 characters")
-	input.Validator.CheckField(len(input.Password) <= 72, "Password", "Password is too long, must be at most 72 characters")
-	input.Validator.CheckField(validator.NotIn(input.Password, password.CommonPasswords...), "Password", "Password is too common")
+	input.Validator.CheckField(len(input.Password) >= 8, "password", "Password is too short, must be at least 8 characters")
+	input.Validator.CheckField(len(input.Password) <= 72, "password", "Password is too long, must be at most 72 characters")
+	input.Validator.CheckField(validator.NotIn(input.Password, password.CommonPasswords...), "password", "Password is too common")
 
 	if input.Validator.HasErrors() {
 		app.failedValidation(c.Writer, c.Request, input.Validator)
@@ -97,7 +97,7 @@ func (app *application) userSignup(c *gin.Context) {
 	}
 	// After the user record has been created in the database, generate a new activation
 	// token for the user.
-	token, err := app.models.Tokens.NewToken(user.ID, 3*24*time.Hour)
+	token, err := app.models.Tokens.NewToken(user.ID, 1*24*time.Hour)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -130,7 +130,6 @@ func (app *application) UserSignupWithGoogle(c *gin.Context) {
 
 	err := request.DecodeJSON(c.Writer, c.Request, &input)
 	if err != nil {
-		fmt.Println(err)
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
@@ -190,88 +189,30 @@ func (app *application) UserSignupWithGoogle(c *gin.Context) {
 }
 
 func (app *application) userActivate(c *gin.Context) {
-	// Parse the plaintext activation token from the request body.
-	var input struct {
-		TokenPlaintext string              `json:"token"`
-		Passcode       string              `json:"passcode"`
-		Validator      validator.Validator `json:"-"`
-	}
-
-	err := request.DecodeJSON(c.Writer, c.Request, &input)
-	if err != nil {
-		app.badRequest(c.Writer, c.Request, err)
-		return
-	}
-
-	// Extract the activation token from the request URL.
-	tokenPlaintext := c.Param("token")
-	input.TokenPlaintext = tokenPlaintext
-
-	// Validate the plaintext token provided by the client.
-	input.Validator.CheckField(input.TokenPlaintext != "", "token", "Token is required")
-	input.Validator.CheckField(len(input.TokenPlaintext) == 26, "token", "must be 26 bytes long")
-	input.Validator.CheckField(len(input.Passcode) == 6, "token", "must be 6 bytes long")
-
-	if input.Validator.HasErrors() {
-		app.failedValidation(c.Writer, c.Request, input.Validator)
-		return
-	}
-
-	// Retrieve the details of the user associated with the token using the
-	// GetForToken() method (which we will create in a minute). If no matching record
-	// is found, then we let the client know that the token they provided is not valid.
-	user, err := app.models.Users.GetForToken(input.TokenPlaintext)
-	if err != nil {
-		switch {
-		case errors.Is(err, models.ErrRecordNotFound):
-			input.Validator.AddFieldError("token", "invalid or expired activation token")
-			app.failedValidation(c.Writer, c.Request, input.Validator)
-		default:
-			app.serverError(c.Writer, c.Request, err)
-		}
-		return
-	}
-
-	// Validate the passcode provided by the client.
-	valid, err := app.models.Tokens.Validate(input.Passcode, input.TokenPlaintext)
-	if err != nil {
-		switch {
-		case errors.Is(err, models.ErrRecordNotFound):
-			input.Validator.AddFieldError("passcode", "invalid or expired passcode")
-			app.failedValidation(c.Writer, c.Request, input.Validator)
-		default:
-			app.serverError(c.Writer, c.Request, err)
-		}
-		return
-	}
-
-	if !valid {
-		input.Validator.AddFieldError("passcode", "invalid or expired passcode")
-		app.failedValidation(c.Writer, c.Request, input.Validator)
+	user := app.userVerification(c)
+	if user == nil {
 		return
 	}
 
 	// Update the user's activation status.
 	user.Activated = true
 	// Save the updated user record in our database, checking for any edit conflicts in // the same way that we did for our movie records.
-	err = app.models.Users.Update(user)
+	err := app.models.Users.Update(user)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrEditConflict):
+			err = app.models.Tokens.DeleteAllForUser(user.ID)
+			if err != nil {
+				app.serverError(c.Writer, c.Request, err)
+				return
+			}
 			app.editConflict(c.Writer, c.Request)
 		default:
 			app.serverError(c.Writer, c.Request, err)
 		}
 		return
 	}
-	// If everything went successfully, then we delete all activation tokens for the
-	// user.
-	err = app.models.Tokens.DeleteAllForUser(user.ID)
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-		return
-	}
-	// TODO: response jwt token
+
 	jwtToken, err := app.generateJWTToken(user.ID, 24*time.Hour)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
@@ -279,7 +220,7 @@ func (app *application) userActivate(c *gin.Context) {
 	}
 	// Encode the token to JSON and send it in the response along with a 201 Created
 	// status code.
-	fmt.Println(jwtToken)
+
 	err = response.JSON(c.Writer, http.StatusOK, envelope{"token": jwtToken})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
@@ -288,9 +229,8 @@ func (app *application) userActivate(c *gin.Context) {
 
 func (app *application) userLogin(c *gin.Context) {
 	var input struct {
-		Email     string              `json:"email"`
-		Password  string              `json:"password"`
-		Validator validator.Validator `json:"-"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	err := request.DecodeJSON(c.Writer, c.Request, &input)
@@ -298,7 +238,7 @@ func (app *application) userLogin(c *gin.Context) {
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
-	fmt.Println("input", input)
+
 	user, err := app.models.Users.GetByEmail(input.Email)
 	if err != nil {
 		switch {
@@ -309,18 +249,18 @@ func (app *application) userLogin(c *gin.Context) {
 		}
 		return
 	}
-	fmt.Println("user", user)
+
 	if !user.Activated {
 		app.inactiveAccount(c.Writer, c.Request)
 		return
 	}
-	fmt.Println("pass activated")
+
 	matches, err := password.Matches(input.Password, user.Password)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
-	fmt.Println("pass matches")
+
 	if !matches {
 		app.invalidCredentials(c.Writer, c.Request)
 		return
@@ -335,6 +275,161 @@ func (app *application) userLogin(c *gin.Context) {
 	// Encode the token to JSON and send it in the response along with a 201 Created
 	// status code.
 	err = response.JSON(c.Writer, http.StatusOK, envelope{"token": jwtToken})
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+	}
+}
+
+func (app *application) UserForgotPassword(c *gin.Context) {
+	var input struct {
+		Email     string              `json:"email"`
+		Validator validator.Validator `json:"-"`
+	}
+
+	err := request.DecodeJSON(c.Writer, c.Request, &input)
+	if err != nil {
+		app.badRequest(c.Writer, c.Request, err)
+		return
+	}
+
+	user, err := app.models.Users.GetByEmail(input.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			app.emailNotFound(c.Writer, c.Request)
+		default:
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+
+	if !user.Activated {
+		app.inactiveAccount(c.Writer, c.Request)
+		return
+	}
+
+	token, err := app.models.Tokens.NewToken(user.ID, 1*24*time.Hour)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+
+	// Launch a goroutine which runs an anonymous function that sends the welcome email.
+	app.background(func() {
+		data := map[string]any{
+			"username":  user.Username,
+			"resetLink": fmt.Sprintf("http://%s%s/reset-password/%s", funcs.LoadEnv("DOMAIN"), funcs.LoadEnv("PORT"), token.Plaintext),
+		}
+
+		err = app.mailer.Send(user.Email, data, "user_forgot_password.tmpl")
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+		}
+	})
+	err = response.JSON(c.Writer, http.StatusCreated, envelope{"message": "Email sent"})
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+}
+
+func (app *application) UserResetPasswordVerify(c *gin.Context) {
+	user := app.userVerification(c)
+
+	if user == nil {
+		return
+	}
+
+	err := app.models.Tokens.DeleteAllForUser(user.ID)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+	token, err := app.models.Tokens.NewToken(user.ID, 3*24*time.Hour)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+
+	err = response.JSON(c.Writer, http.StatusCreated, envelope{"message": "Email sent", "token": token.Plaintext})
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+}
+
+func (app *application) resetPassword(c *gin.Context) { // Parse the plaintext activation token from the request body.
+	var input struct {
+		TokenPlaintext string              `json:"token"`
+		Password       string              `json:"password"`
+		Validator      validator.Validator `json:"-"`
+	}
+
+	err := request.DecodeJSON(c.Writer, c.Request, &input)
+	if err != nil {
+		app.badRequest(c.Writer, c.Request, err)
+	}
+
+	// Extract the activation token from the request URL.
+	tokenPlaintext := c.Param("token")
+	input.TokenPlaintext = tokenPlaintext
+	fmt.Println("tokenPlaintext", tokenPlaintext)
+	// Validate the plaintext token provided by the client.
+	input.Validator.CheckField(input.TokenPlaintext != "", "token", "Token is required")
+	input.Validator.CheckField(len(input.TokenPlaintext) == 26, "token", "must be 26 bytes long")
+
+	input.Validator.CheckField(len(input.Password) >= 8, "password", "Password must be at least 8 characters")
+	input.Validator.CheckField(len(input.Password) <= 72, "password", "Password must be at most 72 characters")
+	input.Validator.CheckField(validator.NotIn(input.Password, password.CommonPasswords...), "password", "Password is too common")
+
+	if input.Validator.HasErrors() {
+		app.failedValidation(c.Writer, c.Request, input.Validator)
+		return
+	}
+
+	// Retrieve the details of the user associated with the token using the
+	// GetForToken() method (which we will create in a minute). If no matching record
+	// is found, then we let the client know that the token they provided is not valid.
+	user, err := app.models.Users.GetForToken(input.TokenPlaintext)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			fmt.Println("token not found")
+			app.notFound(c.Writer, c.Request)
+		default:
+			fmt.Println("serverError")
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+	fmt.Println("user", user)
+	hashedPassword, err := password.Hash(input.Password)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+	user.Password = hashedPassword
+	err = app.models.Users.Update(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrEditConflict):
+			err = app.models.Tokens.DeleteAllForUser(user.ID)
+			if err != nil {
+				app.serverError(c.Writer, c.Request, err)
+				return
+			}
+			app.editConflict(c.Writer, c.Request)
+		default:
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+	err = app.models.Tokens.DeleteAllForUser(user.ID)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+	err = response.JSON(c.Writer, http.StatusOK, envelope{"message": "Password updated successfully"})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}

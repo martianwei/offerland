@@ -22,17 +22,18 @@ func (app *application) SetupRouter() *gin.Engine {
 	// 	post.POST("/", postsHandler.CreatePost)
 	// }
 
+	router.POST("/signup", app.userSignup)
+	router.POST("/activate/:token", app.userActivate)
+	router.POST("/login", app.userLogin)
+	router.POST("/googlelogin", app.UserSignupWithGoogle)
+	router.POST("/forgot-password", app.UserForgotPassword)
+	router.POST("/reset-password/:token", app.resetPassword)
+
 	user := router.Group("/user")
 	{
 		user.GET("/check", app.userCheck)
 		// user.GET("/:user_id", usersHandler.GetUser)
-		user.POST("/signup", app.userSignup)
-		user.POST("/activate/:token", app.userActivate)
-		user.POST("/googlelogin", app.UserSignupWithGoogle)
-		user.POST("/login", app.userLogin)
-		// user.POST("/forgot-password", usersHandler.UserForgotPassword)
-		// user.POST("/reset-password/:token", usersHandler.UserResetPassword)
-	}
 
+	}
 	return router
 }

@@ -177,6 +177,7 @@ func (m UserModel) Update(user *User) error {
 		SET username = $1, email = $2, password = $3, activated = $4, version = version + 1
 		WHERE user_id = $5 AND version = $6
 		RETURNING version`
+
 	args := []any{
 		user.Username, user.Email, user.Password, user.Activated, user.ID, user.Version,
 	}
@@ -202,7 +203,7 @@ func (m UserModel) GetForToken(tokenPlaintext string) (*User, error) {
 	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
 	// Set up the SQL query.
 	query := `
-		SELECT users.user_id, users.created_at, users.username, users.email, users.password, users.activated, users.version 
+		SELECT users.user_id, users.created_at, users.username, users.email, COALESCE(users.password, ''), users.activated, users.version 
 		FROM users
 		INNER JOIN tokens
 		ON users.user_id = tokens.user_id
@@ -217,7 +218,8 @@ func (m UserModel) GetForToken(tokenPlaintext string) (*User, error) {
 	var user User
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	// Execute the query, scanning the return values into a User struct. If no matching // record is found we return an ErrRecordNotFound error.
+	// Execute the query, scanning the return values into a User struct. If no matching
+	// record is found we return an ErrRecordNotFound error.
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
 		&user.ID, &user.CreatedAt, &user.Username, &user.Email, &user.Password, &user.Activated, &user.Version,
 	)

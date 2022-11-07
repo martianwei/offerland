@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -27,13 +26,12 @@ func (app *application) serverError(w http.ResponseWriter, r *http.Request, err 
 }
 
 func (app *application) notFound(w http.ResponseWriter, r *http.Request) {
-	message := "The requested resource could not be found"
-	app.errorMessage(w, r, http.StatusNotFound, message, nil)
+	app.errorMessage(w, r, http.StatusNotFound, "The requested resource could not be found, please try again.", nil)
 }
 
-func (app *application) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
-	message := fmt.Sprintf("The %s method is not supported for this resource", r.Method)
-	app.errorMessage(w, r, http.StatusMethodNotAllowed, message, nil)
+func (app *application) emailNotFound(w http.ResponseWriter, r *http.Request) {
+	message := "The email address you entered could not be found"
+	app.errorMessage(w, r, http.StatusNotFound, message, nil)
 }
 
 func (app *application) badRequest(w http.ResponseWriter, r *http.Request, err error) {
