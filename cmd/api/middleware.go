@@ -33,9 +33,15 @@ func (app *application) authenticate(c *gin.Context) {
 		return
 	}
 
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+
 	// Check that the exp claim is set and that it hasn't expired.
 	if !claims.Valid(time.Now()) {
-		app.models.Tokens.DeleteJWT(token)
+		app.models.Tokens.DeleteJWTTokenForUser(userID)
 		app.invalidAuthenticationToken(c.Writer, c.Request)
 		return
 	}
@@ -47,12 +53,6 @@ func (app *application) authenticate(c *gin.Context) {
 
 	if !claims.AcceptAudience(app.config.baseURL) {
 		app.invalidAuthenticationToken(c.Writer, c.Request)
-		return
-	}
-
-	userID, err := uuid.Parse(claims.Subject)
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
 		return
 	}
 

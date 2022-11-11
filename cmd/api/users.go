@@ -97,7 +97,8 @@ func (app *application) userSignup(c *gin.Context) {
 	}
 	// After the user record has been created in the database, generate a new activation
 	// token for the user.
-	token, err := app.models.Tokens.NewToken(user.ID, 1*24*time.Hour)
+	token, err := app.models.Tokens.NewActivationToken(user.ID, 1*24*time.Hour)
+
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -121,7 +122,7 @@ func (app *application) userSignup(c *gin.Context) {
 	}
 }
 
-func (app *application) UserSignupWithGoogle(c *gin.Context) {
+func (app *application) userSignupWithGoogle(c *gin.Context) {
 	var input struct {
 		ClientID  string              `json:"client_id"`
 		IDToken   string              `json:"id_token"`
@@ -175,7 +176,7 @@ func (app *application) UserSignupWithGoogle(c *gin.Context) {
 		}
 	}
 	// Generate newJWT
-	jwtToken, err := app.generateJWTToken(user.ID, 24*time.Hour)
+	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, 24*time.Hour)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -201,7 +202,7 @@ func (app *application) userActivate(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrEditConflict):
-			err = app.models.Tokens.DeleteAllForUser(user.ID)
+			err = app.models.Tokens.DeleteActivationTokensForUser(user.ID)
 			if err != nil {
 				app.serverError(c.Writer, c.Request, err)
 				return
@@ -213,7 +214,7 @@ func (app *application) userActivate(c *gin.Context) {
 		return
 	}
 
-	jwtToken, err := app.generateJWTToken(user.ID, 24*time.Hour)
+	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, 24*time.Hour)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -267,7 +268,7 @@ func (app *application) userLogin(c *gin.Context) {
 	}
 
 	// Generate newJWT
-	jwtToken, err := app.generateJWTToken(user.ID, 24*time.Hour)
+	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, 24*time.Hour)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -280,7 +281,7 @@ func (app *application) userLogin(c *gin.Context) {
 	}
 }
 
-func (app *application) UserForgotPassword(c *gin.Context) {
+func (app *application) userForgotPassword(c *gin.Context) {
 	var input struct {
 		Email     string              `json:"email"`
 		Validator validator.Validator `json:"-"`
@@ -308,7 +309,7 @@ func (app *application) UserForgotPassword(c *gin.Context) {
 		return
 	}
 
-	token, err := app.models.Tokens.NewToken(user.ID, 1*24*time.Hour)
+	token, err := app.models.Tokens.NewResetToken(user.ID, 1*24*time.Hour)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -333,32 +334,7 @@ func (app *application) UserForgotPassword(c *gin.Context) {
 	}
 }
 
-func (app *application) UserResetPasswordVerify(c *gin.Context) {
-	user := app.userVerification(c)
-
-	if user == nil {
-		return
-	}
-
-	err := app.models.Tokens.DeleteAllForUser(user.ID)
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-		return
-	}
-	token, err := app.models.Tokens.NewToken(user.ID, 3*24*time.Hour)
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-		return
-	}
-
-	err = response.JSON(c.Writer, http.StatusCreated, envelope{"message": "Email sent", "token": token.Plaintext})
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-		return
-	}
-}
-
-func (app *application) resetPassword(c *gin.Context) { // Parse the plaintext activation token from the request body.
+func (app *application) userResetPassword(c *gin.Context) { // Parse the plaintext activation token from the request body.
 	var input struct {
 		TokenPlaintext string              `json:"token"`
 		Password       string              `json:"password"`
@@ -373,7 +349,7 @@ func (app *application) resetPassword(c *gin.Context) { // Parse the plaintext a
 	// Extract the activation token from the request URL.
 	tokenPlaintext := c.Param("token")
 	input.TokenPlaintext = tokenPlaintext
-	fmt.Println("tokenPlaintext", tokenPlaintext)
+
 	// Validate the plaintext token provided by the client.
 	input.Validator.CheckField(input.TokenPlaintext != "", "token", "Token is required")
 	input.Validator.CheckField(len(input.TokenPlaintext) == 26, "token", "must be 26 bytes long")
@@ -390,19 +366,17 @@ func (app *application) resetPassword(c *gin.Context) { // Parse the plaintext a
 	// Retrieve the details of the user associated with the token using the
 	// GetForToken() method (which we will create in a minute). If no matching record
 	// is found, then we let the client know that the token they provided is not valid.
-	user, err := app.models.Users.GetForToken(input.TokenPlaintext)
+	user, err := app.models.Users.GetForResetToken(input.TokenPlaintext)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
-			fmt.Println("token not found")
 			app.notFound(c.Writer, c.Request)
 		default:
-			fmt.Println("serverError")
 			app.serverError(c.Writer, c.Request, err)
 		}
 		return
 	}
-	fmt.Println("user", user)
+
 	hashedPassword, err := password.Hash(input.Password)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
@@ -413,7 +387,7 @@ func (app *application) resetPassword(c *gin.Context) { // Parse the plaintext a
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrEditConflict):
-			err = app.models.Tokens.DeleteAllForUser(user.ID)
+			err = app.models.Tokens.DeleteResetTokensForUser(user.ID)
 			if err != nil {
 				app.serverError(c.Writer, c.Request, err)
 				return
@@ -424,7 +398,7 @@ func (app *application) resetPassword(c *gin.Context) { // Parse the plaintext a
 		}
 		return
 	}
-	err = app.models.Tokens.DeleteAllForUser(user.ID)
+	err = app.models.Tokens.DeleteResetTokensForUser(user.ID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return

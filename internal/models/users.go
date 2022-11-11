@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -53,7 +52,6 @@ func (m UserModel) Insert(user *User) error {
 	var args []any
 	switch {
 	case user.SUB == "":
-		fmt.Println("user.SUB is empty")
 		query = `
 		INSERT INTO users (user_id, username, email, password, activated)
 		VALUES ($1, $2, $3, $4, $5)
@@ -61,7 +59,6 @@ func (m UserModel) Insert(user *User) error {
 		args = []any{user.ID, user.Username, user.Email, user.Password, user.Activated}
 
 	case user.SUB != "":
-		fmt.Println("user.SUB is not empty")
 		query = `
 		INSERT INTO users (user_id, username, email, iss, sub, activated)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -197,7 +194,7 @@ func (m UserModel) Update(user *User) error {
 	return nil
 }
 
-func (m UserModel) GetForToken(tokenPlaintext string) (*User, error) {
+func (m UserModel) GetForActivationToken(tokenPlaintext string) (*User, error) {
 	// Calculate the SHA-256 hash of the plaintext token provided by the client.
 	// Remember that this returns a byte *array* with length 32, not a slice.
 	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
@@ -205,10 +202,48 @@ func (m UserModel) GetForToken(tokenPlaintext string) (*User, error) {
 	query := `
 		SELECT users.user_id, users.created_at, users.username, users.email, COALESCE(users.password, ''), users.activated, users.version 
 		FROM users
-		INNER JOIN tokens
-		ON users.user_id = tokens.user_id
-		WHERE tokens.hash = $1
-		AND tokens.expiry > $2`
+		INNER JOIN activation_tokens
+		ON users.user_id = activation_tokens.user_id
+		WHERE activation_tokens.hash = $1
+		AND activation_tokens.expiry > $2`
+
+	// Create a slice containing the query arguments. Notice how we use the [:] operator
+	// to get a slice containing the token hash, rather than passing in the array (which
+	// is not supported by the pq driver), and that we pass the current time as the
+	// value to check against the token expiry.
+	args := []any{tokenHash[:], time.Now()}
+	var user User
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	// Execute the query, scanning the return values into a User struct. If no matching
+	// record is found we return an ErrRecordNotFound error.
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
+		&user.ID, &user.CreatedAt, &user.Username, &user.Email, &user.Password, &user.Activated, &user.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	// Return the matching user.
+	return &user, nil
+}
+
+func (m UserModel) GetForResetToken(tokenPlaintext string) (*User, error) {
+	// Calculate the SHA-256 hash of the plaintext token provided by the client.
+	// Remember that this returns a byte *array* with length 32, not a slice.
+	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
+	// Set up the SQL query.
+	query := `
+		SELECT users.user_id, users.created_at, users.username, users.email, COALESCE(users.password, ''), users.activated, users.version 
+		FROM users
+		INNER JOIN reset_tokens
+		ON users.user_id = reset_tokens.user_id
+		WHERE reset_tokens.hash = $1
+		AND reset_tokens.expiry > $2`
 
 	// Create a slice containing the query arguments. Notice how we use the [:] operator
 	// to get a slice containing the token hash, rather than passing in the array (which

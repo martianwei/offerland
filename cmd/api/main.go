@@ -117,7 +117,7 @@ func main() {
 	// default to using the port number 4000 and the environment "development" if no
 	// corresponding flags are provided.
 	flag.IntVar(&cfg.port, "port", 8000, "API server port")
-	flag.StringVar(&cfg.baseURL, "base-url", "https://localhost:8000", "base URL for the application")
+	flag.StringVar(&cfg.baseURL, "base-url", funcs.LoadEnv("BASE_URL"), "base URL for the application")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 	flag.StringVar(&cfg.db.dsn, "db-dsn", funcs.LoadEnv("OFFERLAND_DB_DSN"), "PostgreSQL DSN")
 	// Read the connection pool settings from command-line flags into the config struct.
@@ -126,7 +126,7 @@ func main() {
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
 
-	flag.StringVar(&cfg.jwt.secretKey, "jwt-secret-key", "nbzo7n7gBvu7nQUgmFW0jWyNPaOCZG3Y", "secret key for JWT authentication")
+	flag.StringVar(&cfg.jwt.secretKey, "jwt-secret-key", funcs.LoadEnv("JWT_SECRET"), "secret key for JWT authentication")
 
 	flag.StringVar(&cfg.smtp.host, "smtp-host", "smtp.gmail.com", "smtp host")
 	flag.IntVar(&cfg.smtp.port, "smtp-port", 587, "smtp port")

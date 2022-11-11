@@ -25,9 +25,9 @@ func (app *application) SetupRouter() *gin.Engine {
 	router.POST("/signup", app.userSignup)
 	router.POST("/activate/:token", app.userActivate)
 	router.POST("/login", app.userLogin)
-	router.POST("/googlelogin", app.UserSignupWithGoogle)
-	router.POST("/forgot-password", app.UserForgotPassword)
-	router.POST("/reset-password/:token", app.resetPassword)
+	router.POST("/googlelogin", app.userSignupWithGoogle)
+	router.POST("/forgot-password", app.userForgotPassword)
+	router.POST("/reset-password/:token", app.userResetPassword)
 
 	user := router.Group("/user")
 	{

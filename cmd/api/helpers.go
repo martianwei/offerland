@@ -3,11 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/pascaldekloe/jwt"
 	"offerland.cc/internal/models"
 	"offerland.cc/internal/request"
 	"offerland.cc/internal/validator"
@@ -16,7 +13,6 @@ import (
 type envelope map[string]any
 
 func (app *application) userVerification(c *gin.Context) *models.User {
-	fmt.Println("userVerification")
 	// Parse the plaintext activation token from the request body.
 	var input struct {
 		TokenPlaintext string              `json:"token"`
@@ -46,7 +42,7 @@ func (app *application) userVerification(c *gin.Context) *models.User {
 	// Retrieve the details of the user associated with the token using the
 	// GetForToken() method. If no matching record
 	// is found, then we let the client know that the token they provided is not valid.
-	user, err := app.models.Users.GetForToken(input.TokenPlaintext)
+	user, err := app.models.Users.GetForActivationToken(input.TokenPlaintext)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
@@ -69,7 +65,7 @@ func (app *application) userVerification(c *gin.Context) *models.User {
 		}
 		return nil
 	}
-	fmt.Println("valid", valid)
+
 	if !valid {
 		input.Validator.AddFieldError("passcode", "invalid or expired passcode")
 		app.failedValidation(c.Writer, c.Request, input.Validator)
@@ -77,43 +73,12 @@ func (app *application) userVerification(c *gin.Context) *models.User {
 	}
 	// If everything went successfully, then we delete all activation tokens for the
 	// user.
-	err = app.models.Tokens.DeleteAllForUser(user.ID)
+	err = app.models.Tokens.DeleteActivationTokensForUser(user.ID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return nil
 	}
 	return user
-}
-
-func (app *application) generateJWTToken(userID uuid.UUID, ttl time.Duration) (*models.JWTToken, error) {
-	var claims jwt.Claims
-	claims.Subject = userID.String()
-
-	expiry := time.Now().Add(24 * time.Hour)
-	claims.Issued = jwt.NewNumericTime(time.Now())
-	claims.NotBefore = jwt.NewNumericTime(time.Now())
-	claims.Expires = jwt.NewNumericTime(expiry)
-
-	claims.Issuer = app.config.baseURL
-	claims.Audiences = []string{app.config.baseURL}
-
-	jwtBytes, err := claims.HMACSign(jwt.HS256, []byte(app.config.jwt.secretKey))
-	if err != nil {
-		return nil, err
-	}
-
-	jwtToken := &models.JWTToken{
-		Token:  string(jwtBytes),
-		UserID: userID,
-		Expiry: expiry,
-	}
-	app.models.Tokens.InsertJWT(jwtToken, expiry)
-
-	return &models.JWTToken{
-		Token:  string(jwtBytes),
-		UserID: userID,
-		Expiry: expiry,
-	}, nil
 }
 
 // The background() helper accepts an arbitrary function as a parameter.
