@@ -1,4 +1,12 @@
-CREATE TYPE iss_type AS ENUM('google');
+--create types
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'iss_type') THEN
+        CREATE TYPE iss_type AS ENUM('google');
+    END IF;
+    --more types here...
+END$$;
+
 CREATE TABLE IF NOT EXISTS users (
     user_id uuid PRIMARY KEY,
     created_at timestamp(0) with time zone NOT NULL DEFAULT NOW(),
