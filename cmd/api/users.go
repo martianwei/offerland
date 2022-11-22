@@ -166,14 +166,12 @@ func (app *application) userLogin(c *gin.Context) {
 	}
 
 	// Generate new JWT token
-	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, 24*time.Hour)
+	ttl := 1 * 24 * time.Hour
+	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, ttl)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
-
-	// Calculate the expiry time for the JWT token
-	ttl := time.Until(jwtToken.Expiry)
 
 	// Encode the token to JSON and send it in the response along with a 201 Created
 	c.SetCookie("jwt", jwtToken.Token, int(ttl.Seconds()), "/", "", false, true)
@@ -236,14 +234,13 @@ func (app *application) userGoogleLogin(c *gin.Context) {
 			return
 		}
 	}
-	// Generate newJWT
-	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, 24*time.Hour)
+	// Generate new JWT token
+	ttl := 1 * 24 * time.Hour
+	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, ttl)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
-	// Calculate the expiry time for the JWT token
-	ttl := time.Until(jwtToken.Expiry)
 
 	// Encode the token to JSON and send it in the response along with a 201 Created
 	c.SetCookie("jwt", jwtToken.Token, int(ttl.Seconds()), "/", "", false, true)
