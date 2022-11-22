@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,22 +10,15 @@ import (
 )
 
 func (app *application) authenticate(c *gin.Context) {
-	// Get the value of the Authorization header from the request.
-	c.Set("Vary", "Authorization")
-	authorizationHeader := c.Request.Header.Get("Authorization")
-	if authorizationHeader == "" {
+	token, err := c.Cookie("jwt")
+
+	if err != nil {
 		app.contextSetUser(c, models.AnonymousUser)
 		c.Next()
 		return
 	}
 
-	headerParts := strings.Split(authorizationHeader, " ")
-	if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-		app.invalidAuthenticationToken(c.Writer, c.Request)
-		return
-	}
-
-	token := headerParts[1]
+	// token := headerParts[1]
 	claims, err := jwt.HMACCheck([]byte(token), []byte(app.config.jwt.secretKey))
 	if err != nil {
 		app.invalidAuthenticationToken(c.Writer, c.Request)
@@ -41,7 +33,7 @@ func (app *application) authenticate(c *gin.Context) {
 
 	// Check that the exp claim is set and that it hasn't expired.
 	if !claims.Valid(time.Now()) {
-		app.models.Tokens.DeleteJWTTokenForUser(userID)
+		app.models.Tokens.DeleteJWTTByUserID(userID)
 		app.invalidAuthenticationToken(c.Writer, c.Request)
 		return
 	}

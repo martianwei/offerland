@@ -18,13 +18,16 @@ import (
 	"offerland.cc/internal/validator"
 )
 
-func (app *application) userCheck(c *gin.Context) {
+// whoAmI returns the currently authenticated user.
+func (app *application) whoAmI(c *gin.Context) {
 	user := app.contextGetUser(c.Request)
-	if user == nil {
+	if user == models.AnonymousUser {
 		return
 	}
+
 	err := response.JSON(c.Writer, http.StatusOK, envelope{"user": user})
 	if err != nil {
+
 		app.serverError(c.Writer, c.Request, err)
 	}
 }
@@ -97,7 +100,7 @@ func (app *application) userSignup(c *gin.Context) {
 	}
 	// After the user record has been created in the database, generate a new activation
 	// token for the user.
-	token, err := app.models.Tokens.NewActivationToken(user.ID, 1*24*time.Hour)
+	activationToken, err := app.models.Tokens.NewActivationToken(user.ID, 1*24*time.Hour)
 
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
@@ -107,7 +110,7 @@ func (app *application) userSignup(c *gin.Context) {
 	app.background(func() {
 		data := map[string]any{
 			"username": user.Username,
-			"passcode": token.Passcode,
+			"passcode": activationToken.Passcode,
 		}
 
 		err = app.mailer.Send(user.Email, data, "user_activation.tmpl")
@@ -115,14 +118,72 @@ func (app *application) userSignup(c *gin.Context) {
 			app.logger.Error(err)
 		}
 	})
-	err = response.JSON(c.Writer, http.StatusCreated, envelope{"token": token.Plaintext})
+	err = response.JSON(c.Writer, http.StatusCreated, envelope{"activation_token": activationToken.Plaintext})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
 }
 
-func (app *application) userSignupWithGoogle(c *gin.Context) {
+func (app *application) userLogin(c *gin.Context) {
+	var input struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	err := request.DecodeJSON(c.Writer, c.Request, &input)
+	if err != nil {
+
+		app.badRequest(c.Writer, c.Request, err)
+		return
+	}
+
+	user, err := app.models.Users.GetByEmail(input.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			app.invalidCredentials(c.Writer, c.Request)
+		default:
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+
+	if !user.Activated {
+		app.inactiveAccount(c.Writer, c.Request)
+		return
+	}
+
+	matches, err := password.Matches(input.Password, user.Password)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+
+	if !matches {
+		app.invalidCredentials(c.Writer, c.Request)
+		return
+	}
+
+	// Generate new JWT token
+	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, 24*time.Hour)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+
+	// Calculate the expiry time for the JWT token
+	ttl := time.Until(jwtToken.Expiry)
+
+	// Encode the token to JSON and send it in the response along with a 201 Created
+	c.SetCookie("jwt", jwtToken.Token, int(ttl.Seconds()), "/", "", false, true)
+	err = response.JSON(c.Writer, http.StatusOK, envelope{})
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+	}
+}
+
+func (app *application) userGoogleLogin(c *gin.Context) {
 	var input struct {
 		ClientID  string              `json:"client_id"`
 		IDToken   string              `json:"id_token"`
@@ -181,12 +242,36 @@ func (app *application) userSignupWithGoogle(c *gin.Context) {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
+	// Calculate the expiry time for the JWT token
+	ttl := time.Until(jwtToken.Expiry)
+
 	// Encode the token to JSON and send it in the response along with a 201 Created
-	// status code.
-	err = response.JSON(c.Writer, http.StatusOK, envelope{"token": jwtToken})
+	c.SetCookie("jwt", jwtToken.Token, int(ttl.Seconds()), "/", "", false, true)
+	err = response.JSON(c.Writer, http.StatusOK, envelope{})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}
+}
+
+func (app *application) userLogout(c *gin.Context) {
+	// Get the JWT token string from the current request.
+	user := app.contextGetUser(c.Request)
+	if user == nil {
+		return
+	}
+
+	// Delete the token from the database.
+	err := app.models.Tokens.DeleteJWTTByUserID(user.ID)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+
+	// Set an empty JWT token in the response, with an expiry time of -1 day.
+	c.SetCookie("jwt", "", -1, "/", "", false, true)
+
+	// Send a 204 No Content response.
+	c.Status(http.StatusNoContent)
 }
 
 func (app *application) userActivate(c *gin.Context) {
@@ -219,63 +304,13 @@ func (app *application) userActivate(c *gin.Context) {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
+
+	// Calculate the expiry time for the JWT token
+	ttl := time.Until(jwtToken.Expiry)
+
 	// Encode the token to JSON and send it in the response along with a 201 Created
-	// status code.
-
-	err = response.JSON(c.Writer, http.StatusOK, envelope{"token": jwtToken})
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-	}
-}
-
-func (app *application) userLogin(c *gin.Context) {
-	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
-	err := request.DecodeJSON(c.Writer, c.Request, &input)
-	if err != nil {
-		app.badRequest(c.Writer, c.Request, err)
-		return
-	}
-
-	user, err := app.models.Users.GetByEmail(input.Email)
-	if err != nil {
-		switch {
-		case errors.Is(err, models.ErrRecordNotFound):
-			app.invalidCredentials(c.Writer, c.Request)
-		default:
-			app.serverError(c.Writer, c.Request, err)
-		}
-		return
-	}
-
-	if !user.Activated {
-		app.inactiveAccount(c.Writer, c.Request)
-		return
-	}
-
-	matches, err := password.Matches(input.Password, user.Password)
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-		return
-	}
-
-	if !matches {
-		app.invalidCredentials(c.Writer, c.Request)
-		return
-	}
-
-	// Generate newJWT
-	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, 24*time.Hour)
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-		return
-	}
-	// Encode the token to JSON and send it in the response along with a 201 Created
-	// status code.
-	err = response.JSON(c.Writer, http.StatusOK, envelope{"token": jwtToken})
+	c.SetCookie("jwt", jwtToken.Token, int(ttl.Seconds()), "/", "", false, true)
+	err = response.JSON(c.Writer, http.StatusOK, envelope{})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}

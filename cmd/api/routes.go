@@ -8,12 +8,37 @@ import (
 func (app *application) SetupRouter() *gin.Engine {
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"http://localhost:3000"},
-		AllowMethods: []string{"OPTIONS", "PUT", "DELETE", "PATCH"},
-		AllowHeaders: []string{"Content-Type", "Authorization"},
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"OPTIONS", "GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
 	}))
 	router.Use(app.authenticate)
 
+	router.GET("/whoami", app.whoAmI)
+
+	auth := router.Group("/auth")
+	{
+		auth.POST("/signup", app.userSignup)
+		auth.POST("/login", app.userLogin)
+		auth.POST("/googlelogin", app.userGoogleLogin)
+		auth.POST("/logout", app.userLogout)
+		auth.POST("/activate/:token", app.userActivate)
+	}
+	router.POST("/forgot-password", app.userForgotPassword)
+	router.POST("/reset-password/:token", app.userResetPassword)
+
+	// _api := router.Group("/_api")
+	// {
+	// 	_api.GET("/schools", app.getSchools)
+	// 	_api.GET("/majors", app.getMajors)
+	// 	_api.GET("/majors/:school", app.getMajorsBySchool)
+	// }
+
+	// user := router.Group("/user")
+	// {
+	// 	user.GET("/:user_id", usersHandler.GetUser)
+	// }
 	// postsHandler := handler.NewPostHandler(app.db)
 	// post := router.Group("/post")
 	// {
@@ -21,19 +46,10 @@ func (app *application) SetupRouter() *gin.Engine {
 	// 	post.GET("/", postsHandler.GetAllPosts)
 	// 	post.POST("/", postsHandler.CreatePost)
 	// }
+	// school := router.Group("/school")
+	// {
+	// 	school.GET("", app.getSchools)
+	// }
 
-	router.POST("/signup", app.userSignup)
-	router.POST("/activate/:token", app.userActivate)
-	router.POST("/login", app.userLogin)
-	router.POST("/googlelogin", app.userSignupWithGoogle)
-	router.POST("/forgot-password", app.userForgotPassword)
-	router.POST("/reset-password/:token", app.userResetPassword)
-
-	user := router.Group("/user")
-	{
-		user.GET("/check", app.userCheck)
-		// user.GET("/:user_id", usersHandler.GetUser)
-
-	}
 	return router
 }

@@ -210,7 +210,7 @@ func (m TokenModel) InsertJWTToken(jwtToken *JWTToken) error {
 	return err
 }
 
-func (m TokenModel) DeleteJWTTokenForUser(userID uuid.UUID) error {
+func (m TokenModel) DeleteJWTTByUserID(userID uuid.UUID) error {
 	query := `
 		DELETE FROM jwt_tokens
 		WHERE user_id = $1`
