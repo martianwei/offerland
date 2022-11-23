@@ -174,7 +174,16 @@ func (app *application) userLogin(c *gin.Context) {
 	}
 
 	// Encode the token to JSON and send it in the response along with a 201 Created
-	c.SetCookie("jwt", jwtToken.Token, int(ttl.Seconds()), "/", "", false, true)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "AUTH",
+		Value:    jwtToken.Token,
+		Path:     "/",
+		Domain:   "",
+		MaxAge:   int(ttl.Seconds()),
+		Secure:   false,
+		HttpOnly: true,
+		SameSite: 2,
+	})
 	err = response.JSON(c.Writer, http.StatusOK, envelope{})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
@@ -234,6 +243,7 @@ func (app *application) userGoogleLogin(c *gin.Context) {
 			return
 		}
 	}
+
 	// Generate new JWT token
 	ttl := 1 * 24 * time.Hour
 	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, ttl)
@@ -243,7 +253,17 @@ func (app *application) userGoogleLogin(c *gin.Context) {
 	}
 
 	// Encode the token to JSON and send it in the response along with a 201 Created
-	c.SetCookie("jwt", jwtToken.Token, int(ttl.Seconds()), "/", "", false, true)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "AUTH",
+		Value:    jwtToken.Token,
+		Path:     "/",
+		Domain:   "",
+		MaxAge:   int(ttl.Seconds()),
+		Secure:   false,
+		HttpOnly: true,
+		SameSite: 2,
+	})
+
 	err = response.JSON(c.Writer, http.StatusOK, envelope{})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
@@ -265,7 +285,7 @@ func (app *application) userLogout(c *gin.Context) {
 	}
 
 	// Set an empty JWT token in the response, with an expiry time of -1 day.
-	c.SetCookie("jwt", "", -1, "/", "", false, true)
+	c.SetCookie("AUTH", "", -1, "/", "", false, true)
 
 	// Send a 204 No Content response.
 	c.Status(http.StatusNoContent)
