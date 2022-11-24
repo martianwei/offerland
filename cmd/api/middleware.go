@@ -12,7 +12,6 @@ import (
 
 func (app *application) authenticate(c *gin.Context) {
 	token, err := c.Cookie("AUTH")
-	fmt.Println(token)
 	if err != nil {
 		fmt.Println(err)
 		app.contextSetUser(c, models.AnonymousUser)

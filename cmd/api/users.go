@@ -27,7 +27,6 @@ func (app *application) whoAmI(c *gin.Context) {
 
 	err := response.JSON(c.Writer, http.StatusOK, envelope{"user": user})
 	if err != nil {
-
 		app.serverError(c.Writer, c.Request, err)
 	}
 }
@@ -67,6 +66,7 @@ func (app *application) userSignup(c *gin.Context) {
 	input.Validator.CheckField(validator.NotIn(input.Password, password.CommonPasswords...), "password", "Password is too common")
 
 	if input.Validator.HasErrors() {
+		fmt.Println(input.Validator)
 		app.failedValidation(c.Writer, c.Request, input.Validator)
 		return
 	}
@@ -326,7 +326,7 @@ func (app *application) userActivate(c *gin.Context) {
 	ttl := time.Until(jwtToken.Expiry)
 
 	// Encode the token to JSON and send it in the response along with a 201 Created
-	c.SetCookie("jwt", jwtToken.Token, int(ttl.Seconds()), "/", "", false, true)
+	c.SetCookie("AUTH", jwtToken.Token, int(ttl.Seconds()), "/", "", false, true)
 	err = response.JSON(c.Writer, http.StatusOK, envelope{})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
@@ -386,7 +386,7 @@ func (app *application) userForgotPassword(c *gin.Context) {
 	}
 }
 
-func (app *application) userResetPassword(c *gin.Context) { // Parse the plaintext activation token from the request body.
+func (app *application) userForgotPasswordReset(c *gin.Context) { // Parse the plaintext activation token from the request body.
 	var input struct {
 		TokenPlaintext string              `json:"token"`
 		Password       string              `json:"password"`
@@ -397,7 +397,8 @@ func (app *application) userResetPassword(c *gin.Context) { // Parse the plainte
 	if err != nil {
 		app.badRequest(c.Writer, c.Request, err)
 	}
-
+	fmt.Println(input.TokenPlaintext)
+	fmt.Println(input.Password)
 	// Extract the activation token from the request URL.
 	tokenPlaintext := c.Param("token")
 	input.TokenPlaintext = tokenPlaintext
@@ -422,7 +423,7 @@ func (app *application) userResetPassword(c *gin.Context) { // Parse the plainte
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
-			app.notFound(c.Writer, c.Request)
+			app.invalidToken(c.Writer, c.Request)
 		default:
 			app.serverError(c.Writer, c.Request, err)
 		}
@@ -456,6 +457,48 @@ func (app *application) userResetPassword(c *gin.Context) { // Parse the plainte
 		return
 	}
 	err = response.JSON(c.Writer, http.StatusOK, envelope{"message": "Password updated successfully"})
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+	}
+}
+
+func (app *application) checkEmail(c *gin.Context) {
+	email := c.Param("email")
+	_, err := app.models.Users.GetByEmail(email)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			err = response.JSON(c.Writer, http.StatusOK, envelope{"available": true})
+			if err != nil {
+				app.serverError(c.Writer, c.Request, err)
+			}
+		default:
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+	err = response.JSON(c.Writer, http.StatusOK, envelope{"available": false})
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+	}
+}
+
+func (app *application) checkUsername(c *gin.Context) {
+	username := c.Param("username")
+	_, err := app.models.Users.GetByUsername(username)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			err = response.JSON(c.Writer, http.StatusOK, envelope{"available": true})
+			if err != nil {
+				app.serverError(c.Writer, c.Request, err)
+			}
+		default:
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+	err = response.JSON(c.Writer, http.StatusOK, envelope{"available": false})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}

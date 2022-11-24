@@ -16,7 +16,8 @@ func (app *application) SetupRouter() *gin.Engine {
 	router.Use(app.authenticate)
 
 	router.GET("/whoami", app.whoAmI)
-
+	router.GET("/api/users/check_email/:email", app.checkEmail)
+	router.GET("/api/users/check_username/:username", app.checkUsername)
 	auth := router.Group("/auth")
 	{
 		auth.POST("/signup", app.userSignup)
@@ -26,8 +27,7 @@ func (app *application) SetupRouter() *gin.Engine {
 		auth.POST("/activate/:token", app.userActivate)
 	}
 	router.POST("/forgot-password", app.userForgotPassword)
-	router.POST("/reset-password/:token", app.userResetPassword)
-
+	router.POST("/reset-forgot-password/:token", app.userForgotPasswordReset)
 	// _api := router.Group("/_api")
 	// {
 	// 	_api.GET("/schools", app.getSchools)

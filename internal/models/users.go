@@ -156,7 +156,7 @@ func (m UserModel) GetByUsername(username string) (*User, error) {
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, nil
+			return nil, ErrRecordNotFound
 		default:
 			return nil, err
 		}

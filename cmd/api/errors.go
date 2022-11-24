@@ -50,6 +50,11 @@ func (app *application) failedValidation(w http.ResponseWriter, r *http.Request,
 	}
 }
 
+func (app *application) invalidToken(w http.ResponseWriter, r *http.Request) {
+	message := "Your token is invalid or has expired, please try again"
+	app.errorMessage(w, r, http.StatusUnauthorized, message, nil)
+}
+
 func (app *application) invalidCredentials(w http.ResponseWriter, r *http.Request) {
 	message := "invalid email address or password"
 	app.errorMessage(w, r, http.StatusUnauthorized, message, nil)
