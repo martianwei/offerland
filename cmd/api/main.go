@@ -171,8 +171,15 @@ func main() {
 		mailer: mailer,
 	}
 
+	// Start the HTTP server
 	err = app.serve()
 	if err != nil {
 		logger.Fatal(err)
 	}
+
+	// // Start the HTTPS server
+	// err = app.serveTLS()
+	// if err != nil {
+	// 	logger.Fatal(err)
+	// }
 }

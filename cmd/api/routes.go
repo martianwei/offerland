@@ -13,21 +13,31 @@ func (app *application) SetupRouter() *gin.Engine {
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
+
 	router.Use(app.authenticate)
 
 	router.GET("/whoami", app.whoAmI)
-	router.GET("/api/users/check_email/:email", app.checkEmail)
-	router.GET("/api/users/check_username/:username", app.checkUsername)
+
 	auth := router.Group("/auth")
 	{
+		// Sign up
 		auth.POST("/signup", app.userSignup)
+		// Activate account
+		auth.POST("/activate/:token", app.userActivate)
+		// Check if the username is already in use
+		auth.GET("/check_username/:username", app.checkUsername)
+		// Check if the email address is already in use
+		auth.GET("/check_email/:email", app.checkEmail)
+		// Login
 		auth.POST("/login", app.userLogin)
 		auth.POST("/googlelogin", app.userGoogleLogin)
+		// Logout
 		auth.POST("/logout", app.userLogout)
-		auth.POST("/activate/:token", app.userActivate)
 	}
+	// Forgot password
 	router.POST("/forgot-password", app.userForgotPassword)
 	router.POST("/reset-forgot-password/:token", app.userForgotPasswordReset)
+
 	// _api := router.Group("/_api")
 	// {
 	// 	_api.GET("/schools", app.getSchools)

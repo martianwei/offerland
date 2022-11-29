@@ -133,13 +133,13 @@ func (app *application) userLogin(c *gin.Context) {
 
 	err := request.DecodeJSON(c.Writer, c.Request, &input)
 	if err != nil {
-
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
 
 	user, err := app.models.Users.GetByEmail(input.Email)
 	if err != nil {
+		fmt.Println(err)
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
 			app.invalidCredentials(c.Writer, c.Request)
@@ -161,6 +161,7 @@ func (app *application) userLogin(c *gin.Context) {
 	}
 
 	if !matches {
+		fmt.Println("invalid credentials")
 		app.invalidCredentials(c.Writer, c.Request)
 		return
 	}
@@ -371,7 +372,7 @@ func (app *application) userForgotPassword(c *gin.Context) {
 	app.background(func() {
 		data := map[string]any{
 			"username":  user.Username,
-			"resetLink": fmt.Sprintf("http://%s%s/reset-password/%s", funcs.LoadEnv("DOMAIN"), funcs.LoadEnv("PORT"), token.Plaintext),
+			"resetLink": fmt.Sprintf("http://%s%s/reset-forgot-password/%s", funcs.LoadEnv("DOMAIN"), funcs.LoadEnv("PORT"), token.Plaintext),
 		}
 
 		err = app.mailer.Send(user.Email, data, "user_forgot_password.tmpl")
