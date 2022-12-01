@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,7 +12,6 @@ import (
 func (app *application) authenticate(c *gin.Context) {
 	token, err := c.Cookie("AUTH")
 	if err != nil {
-		fmt.Println(err)
 		app.contextSetUser(c, models.AnonymousUser)
 		c.Next()
 		return

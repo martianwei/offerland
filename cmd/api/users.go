@@ -66,7 +66,6 @@ func (app *application) userSignup(c *gin.Context) {
 	input.Validator.CheckField(validator.NotIn(input.Password, password.CommonPasswords...), "password", "Password is too common")
 
 	if input.Validator.HasErrors() {
-		fmt.Println(input.Validator)
 		app.failedValidation(c.Writer, c.Request, input.Validator)
 		return
 	}
@@ -139,7 +138,6 @@ func (app *application) userLogin(c *gin.Context) {
 
 	user, err := app.models.Users.GetByEmail(input.Email)
 	if err != nil {
-		fmt.Println(err)
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
 			app.invalidCredentials(c.Writer, c.Request)
@@ -161,7 +159,6 @@ func (app *application) userLogin(c *gin.Context) {
 	}
 
 	if !matches {
-		fmt.Println("invalid credentials")
 		app.invalidCredentials(c.Writer, c.Request)
 		return
 	}
@@ -380,7 +377,7 @@ func (app *application) userForgotPassword(c *gin.Context) {
 	app.background(func() {
 		data := map[string]any{
 			"username":  user.Username,
-			"resetLink": fmt.Sprintf("http://%s%s/reset-forgot-password/%s", funcs.LoadEnv("DOMAIN"), funcs.LoadEnv("PORT"), token.Plaintext),
+			"resetLink": fmt.Sprintf("http://%s/reset-forgot-password/%s", funcs.LoadEnv("FRONTEND_URL"), token.Plaintext),
 		}
 
 		err = app.mailer.Send(user.Email, data, "user_forgot_password.tmpl")
@@ -406,8 +403,7 @@ func (app *application) userForgotPasswordReset(c *gin.Context) { // Parse the p
 	if err != nil {
 		app.badRequest(c.Writer, c.Request, err)
 	}
-	fmt.Println(input.TokenPlaintext)
-	fmt.Println(input.Password)
+
 	// Extract the activation token from the request URL.
 	tokenPlaintext := c.Param("token")
 	input.TokenPlaintext = tokenPlaintext
