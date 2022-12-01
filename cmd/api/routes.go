@@ -8,7 +8,7 @@ import (
 func (app *application) SetupRouter() *gin.Engine {
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     []string{"http://localhost:3000", "https://offerland.cc"},
 		AllowMethods:     []string{"OPTIONS", "GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -37,6 +37,13 @@ func (app *application) SetupRouter() *gin.Engine {
 	// Forgot password
 	router.POST("/forgot-password", app.userForgotPassword)
 	router.POST("/reset-forgot-password/:token", app.userForgotPasswordReset)
+
+	result := router.Group("/result")
+	{
+		result.POST("", app.createResult)
+		// result.GET("/", app.getResult)
+		// result.GET("/all", app.getAllResults)
+	}
 
 	// _api := router.Group("/_api")
 	// {
