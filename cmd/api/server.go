@@ -153,7 +153,7 @@ func (app *application) serveTLS() error {
 	// return a http.ErrServerClosed error. So if we see this error, it is actually a
 	// good thing and an indication that the graceful shutdown has started. So we check
 	// specifically for this, only returning the error if it is NOT http.ErrServerClosed
-	err := srv.ListenAndServeTLS("./tls/cert.pem", "./tls/key.pem")
+	err := srv.ListenAndServeTLS("./tls/localhost.pem", "./tls/localhost-key.pem")
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
