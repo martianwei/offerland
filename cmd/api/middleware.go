@@ -17,7 +17,6 @@ func (app *application) authenticate(c *gin.Context) {
 		return
 	}
 
-	// token := headerParts[1]
 	claims, err := jwt.HMACCheck([]byte(token), []byte(app.config.jwt.secretKey))
 	if err != nil {
 		app.invalidAuthenticationToken(c.Writer, c.Request)
