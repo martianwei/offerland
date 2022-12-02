@@ -9,13 +9,20 @@ func (app *application) SetupRouter() *gin.Engine {
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "https://offerland.cc"},
-		AllowMethods:     []string{"OPTIONS", "GET", "POST", "PUT", "DELETE"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
 
+	// If user is authenticated, set the user in the context.
+	// If user is not authenticated, set the user to AnonymousUser.
 	router.Use(app.authenticate)
 
+	// Return pong if the server is up.
+	router.GET("/ping", app.pong)
+
+	// If context has user, return user.
+	// If context has no user, return AnonymousUser.
 	router.GET("/whoami", app.whoAmI)
 
 	auth := router.Group("/auth")
