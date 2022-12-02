@@ -12,6 +12,10 @@ import (
 
 type envelope map[string]any
 
+func (app *application) pong(c *gin.Context) {
+	c.String(200, "pong")
+}
+
 func (app *application) userVerification(c *gin.Context) *models.User {
 	// Parse the plaintext activation token from the request body.
 	var input struct {

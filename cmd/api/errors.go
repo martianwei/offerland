@@ -13,7 +13,6 @@ func (app *application) errorMessage(w http.ResponseWriter, r *http.Request, sta
 
 	err := response.JSONWithHeaders(w, status, map[string]string{"Error": message}, headers)
 	if err != nil {
-		app.logger.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
@@ -66,20 +65,5 @@ func (app *application) inactiveAccount(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *application) invalidAuthenticationToken(w http.ResponseWriter, r *http.Request) {
-	headers := make(http.Header)
-	headers.Set("WWW-Authenticate", "Bearer")
-
-	app.errorMessage(w, r, http.StatusUnauthorized, "Invalid or missing authentication token", headers)
-}
-
-func (app *application) authenticationRequired(w http.ResponseWriter, r *http.Request) {
-	app.errorMessage(w, r, http.StatusUnauthorized, "You must be authenticated to access this resource", nil)
-}
-
-func (app *application) basicAuthenticationRequired(w http.ResponseWriter, r *http.Request) {
-	headers := make(http.Header)
-	headers.Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
-
-	message := "You must be authenticated to access this resource"
-	app.errorMessage(w, r, http.StatusUnauthorized, message, headers)
+	app.errorMessage(w, r, http.StatusUnauthorized, "Invalid or missing authentication token", nil)
 }
