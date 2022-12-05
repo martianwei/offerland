@@ -45,11 +45,11 @@ func (app *application) SetupRouter() *gin.Engine {
 	router.POST("/forgot-password", app.userForgotPassword)
 	router.POST("/reset-forgot-password/:token", app.userForgotPasswordReset)
 
-	result := router.Group("/result")
+	result := router.Group("/results")
 	{
 		result.POST("", app.createResult)
-		// result.GET("/", app.getResult)
-		// result.GET("/all", app.getAllResults)
+		result.GET("", app.getUserResults)
+		result.GET("/all", app.getAllResults)
 	}
 
 	// _api := router.Group("/_api")
@@ -64,11 +64,21 @@ func (app *application) SetupRouter() *gin.Engine {
 	// 	user.GET("/:user_id", usersHandler.GetUser)
 	// }
 	// postsHandler := handler.NewPostHandler(app.db)
-	// post := router.Group("/post")
+	post := router.Group("/posts")
+	{
+		post.GET("/:id", app.GetPost)
+		post.GET("/", app.GetAllPosts)
+		post.POST("/", app.CreatePost)
+		post.PUT("/:id", app.UpdatePost)
+		post.DELETE("/:id", app.DeletePost)
+	}
+
+	// application_result := router.Group("/application_results")
 	// {
-	// 	post.GET("/:post_id", postsHandler.GetPost)
-	// 	post.GET("/", postsHandler.GetAllPosts)
-	// 	post.POST("/", postsHandler.CreatePost)
+	// 	application_result.GET("/:user_id", app.GetApplicationResults)
+	// 	application_result.POST("/", app.CreateApplicationResult)
+	// 	application_result.PUT("/", app.UpdateApplicationResult)
+	// 	application_result.DELETE("/",app.DeleteApplicationResult)
 	// }
 	// school := router.Group("/school")
 	// {
