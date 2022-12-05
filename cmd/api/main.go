@@ -60,6 +60,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"sync"
 
 	_ "github.com/lib/pq"
@@ -114,9 +115,14 @@ func main() {
 	// Declare an instance of the config struct.
 	var cfg config
 	// Read the value of the port and env command-line flags into the config struct. We
-	// default to using the port number 4000 and the environment "development" if no
+	// default to using the port number 8080 and the environment "development" if no
 	// corresponding flags are provided.
-	flag.IntVar(&cfg.port, "port", 8000, "API server port")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	cfg.port, _ = strconv.Atoi(port)
 	flag.StringVar(&cfg.baseURL, "base-url", funcs.LoadEnv("BASE_URL"), "base URL for the application")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 	flag.StringVar(&cfg.db.dsn, "db-dsn", funcs.LoadEnv("OFFERLAND_DB_DSN"), "PostgreSQL DSN")
@@ -145,10 +151,10 @@ func main() {
 	}
 	defer f.Close()
 
-	// Initialize a new logger which writes messages to the standard out stream,
-	// prefixed with the current date and time.
-
+	// Initialize a new instance of the leveledlog.Logger
+	// Write logs to file
 	// logger := leveledlog.NewJSONLogger(f, leveledlog.LevelAll)
+	// Write logs to stdout
 	logger := leveledlog.NewLogger(os.Stdout, leveledlog.LevelAll, true)
 
 	db, err := database.New(cfg.db.dsn, cfg.db.automigrate, cfg.db.maxOpenConns, cfg.db.maxIdleConns, cfg.db.maxIdleTime)
