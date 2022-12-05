@@ -45,11 +45,11 @@ func (app *application) SetupRouter() *gin.Engine {
 	router.POST("/forgot-password", app.userForgotPassword)
 	router.POST("/reset-forgot-password/:token", app.userForgotPasswordReset)
 
-	result := router.Group("/result")
+	result := router.Group("/results")
 	{
 		result.POST("", app.createResult)
-		// result.GET("/", app.getResult)
-		// result.GET("/all", app.getAllResults)
+		result.GET("", app.getUserResults)
+		result.GET("/all", app.getAllResults)
 	}
 
 	// _api := router.Group("/_api")
