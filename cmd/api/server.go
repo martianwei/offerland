@@ -14,7 +14,7 @@ import (
 func (app *application) serve() error {
 	// Declare a HTTP server using the same settings as in our main() function.
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", app.config.port),
+		Addr:         fmt.Sprintf("0.0.0.0:%d", app.config.port),
 		Handler:      app.SetupRouter(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,

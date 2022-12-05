@@ -55,7 +55,35 @@ func (m *ResultModel) Get(userID uuid.UUID) ([]Result, error) {
 	results := []Result{}
 	for rows.Next() {
 		var r Result
-		err = rows.Scan(&r.UserID, &r.SchoolName, &r.MajorName, &r.AnnounceDate, &r.Others)
+		err = rows.Scan(&r.UserID, &r.SchoolName, &r.MajorName, &r.AnnounceDate, &r.Status, &r.Others)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func (m *ResultModel) GetAll() ([]Result, error) {
+	query := `
+		SELECT user_id, school_name, major_name, announce_date, status, others
+		FROM user_to_results
+	`
+
+	rows, err := m.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	results := []Result{}
+	for rows.Next() {
+		var r Result
+		err = rows.Scan(&r.UserID, &r.SchoolName, &r.MajorName, &r.AnnounceDate, &r.Status, &r.Others)
 		if err != nil {
 			return nil, err
 		}
