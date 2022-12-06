@@ -45,22 +45,52 @@ func (app *application) userSignup(c *gin.Context) {
 		return
 	}
 
-	existingEmail, err := app.models.Users.GetByEmail(input.Email)
+	// Check if the email is already in use
+	user, err := app.models.Users.GetByEmail(input.Email)
 	if err != nil && !errors.Is(err, models.ErrRecordNotFound) {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
 
-	existingUsername, err := app.models.Users.GetByUsername(input.Username)
+	// If the user exists
+	if user != nil && user.Activated {
+		app.createConflict(c.Writer, c.Request)
+		return
+	}
+
+	// If the user exists but is not activated, delete the existing user record
+	if user != nil && !user.Activated {
+		err = app.models.Users.Delete(user.ID)
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+			return
+		}
+	}
+
+	// Check if the username is already in use
+	user, err = app.models.Users.GetByUsername(input.Username)
 	if err != nil && !errors.Is(err, models.ErrRecordNotFound) {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
+
+	// If the user exists
+	if user != nil && user.Activated {
+		app.createConflict(c.Writer, c.Request)
+		return
+	}
+
+	// If the user exists but is not activated, delete the existing user record
+	if user != nil && !user.Activated {
+		err = app.models.Users.Delete(user.ID)
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+			return
+		}
+	}
+
+	// Validate the input data
 	input.Validator.CheckField(validator.Matches(input.Email, validator.RgxEmail), "Email", "Must be a valid email address")
-	input.Validator.CheckField(existingEmail == nil, "email", "Email is already in use")
-
-	input.Validator.CheckField(existingUsername == nil, "username", "Username is already in use")
-
 	input.Validator.CheckField(len(input.Password) >= 8, "password", "Password is too short, must be at least 8 characters")
 	input.Validator.CheckField(len(input.Password) <= 72, "password", "Password is too long, must be at most 72 characters")
 	input.Validator.CheckField(validator.NotIn(input.Password, password.CommonPasswords...), "password", "Password is too common")
@@ -70,7 +100,8 @@ func (app *application) userSignup(c *gin.Context) {
 		return
 	}
 
-	user := &models.User{
+	// Create the new user record
+	user = &models.User{
 		ID:        uuid.New(),
 		Username:  input.Username,
 		Email:     input.Email,
@@ -469,7 +500,17 @@ func (app *application) userForgotPasswordReset(c *gin.Context) { // Parse the p
 
 func (app *application) checkEmail(c *gin.Context) {
 	email := c.Param("email")
-	_, err := app.models.Users.GetByEmail(email)
+	user, err := app.models.Users.GetByEmail(email)
+	// if user not activated, then email is available
+	if user != nil && !user.Activated {
+		err = response.JSON(c.Writer, http.StatusOK, envelope{"available": true})
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+
+	// if user not found, then email is available
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
@@ -490,7 +531,17 @@ func (app *application) checkEmail(c *gin.Context) {
 
 func (app *application) checkUsername(c *gin.Context) {
 	username := c.Param("username")
-	_, err := app.models.Users.GetByUsername(username)
+	user, err := app.models.Users.GetByUsername(username)
+	// if user not activated, then username is available
+	if user != nil && !user.Activated {
+		err = response.JSON(c.Writer, http.StatusOK, envelope{"available": true})
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+
+	// if user not found, then username is available
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
