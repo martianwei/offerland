@@ -116,6 +116,21 @@ func (m UserModel) Get(user_id uuid.UUID) (*User, error) {
 	return &user, nil
 }
 
+func (m UserModel) Delete(user_id uuid.UUID) error {
+	query := `
+		DELETE FROM users
+		WHERE user_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.ExecContext(ctx, query, user_id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Retrieve the User details from the database based on the user's email address.
 // Because we have a UNIQUE constraint on the email column, this SQL query will only
 // return one record (or none at all, in which case we return a ErrRecordNotFound error).
