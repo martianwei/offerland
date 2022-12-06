@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"time"
 
-
 	"gopkg.in/mail.v2"
 	"offerland.cc/assets"
 	"offerland.cc/internal/funcs"

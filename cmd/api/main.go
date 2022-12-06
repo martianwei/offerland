@@ -123,7 +123,6 @@ func main() {
 	}
 
 	cfg.port, _ = strconv.Atoi(port)
-	flag.StringVar(&cfg.baseURL, "base-url", funcs.LoadEnv("BASE_URL"), "base URL for the application")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 	flag.StringVar(&cfg.db.dsn, "db-dsn", funcs.LoadEnv("OFFERLAND_DB_DSN"), "PostgreSQL DSN")
 	// Read the connection pool settings from command-line flags into the config struct.
@@ -182,10 +181,4 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	// // Start the HTTPS server
-	// err = app.serveTLS()
-	// if err != nil {
-	// 	logger.Fatal(err)
-	// }
 }

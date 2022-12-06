@@ -5,7 +5,6 @@
 ### Env
 ```sh
 # .env
-BASE_URL=""
 OFFERLAND_DB_DSN=""
 
 DOMAIN=""

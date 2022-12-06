@@ -55,6 +55,7 @@ db/migrations/reset: db/migrations/down db/migrations/up
 # ==================================================================================== #
 
 ## audit: tidy and vendor dependencies and format, vet and test all code
+## run this before committing
 .PHONY: audit 
 audit: vendor
 	@echo 'Formatting code...' 
