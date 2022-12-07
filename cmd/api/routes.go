@@ -67,8 +67,8 @@ func (app *application) SetupRouter() *gin.Engine {
 	post := router.Group("/posts")
 	{
 		post.GET("/:id", app.GetPost)
-		post.GET("/", app.GetAllPosts)
-		post.POST("/", app.CreatePost)
+		post.GET("", app.GetAllPosts)
+		post.POST("", app.CreatePost)
 		post.PUT("/:id", app.UpdatePost)
 		post.DELETE("/:id", app.DeletePost)
 	}

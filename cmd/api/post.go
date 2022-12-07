@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,6 +27,8 @@ func (app *application) CreatePost(c *gin.Context) {
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
+
+	fmt.Println("input.Title: ", input.Title)
 
 	post := &models.Post{
 		PostID:    uuid.New(),
@@ -147,12 +150,9 @@ func (app *application) GetPost(c *gin.Context) {
 }
 
 func (app *application) GetAllPosts(c *gin.Context) {
-	user := app.contextGetUser(c.Request)
-	if user == models.AnonymousUser {
-		return
-	}
+	filter := c.Request.URL.Query()
 
-	posts, err := app.models.Posts.GetAllPosts()
+	posts, err := app.models.Posts.GetAllPosts(filter)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
