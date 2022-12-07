@@ -209,9 +209,9 @@ func (app *application) userLogin(c *gin.Context) {
 		Path:     "/",
 		Domain:   "",
 		MaxAge:   int(ttl.Seconds()),
-		Secure:   true,
+		Secure:   false,
 		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: 2,
 	})
 	err = response.JSON(c.Writer, http.StatusOK, envelope{})
 	if err != nil {
@@ -288,9 +288,9 @@ func (app *application) userGoogleLogin(c *gin.Context) {
 		Path:     "/",
 		Domain:   "",
 		MaxAge:   int(ttl.Seconds()),
-		Secure:   true,
+		Secure:   false,
 		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: 2,
 	})
 
 	err = response.JSON(c.Writer, http.StatusOK, envelope{})
@@ -359,9 +359,9 @@ func (app *application) userActivate(c *gin.Context) {
 		Path:     "/",
 		Domain:   "",
 		MaxAge:   int(ttl.Seconds()),
-		Secure:   true,
+		Secure:   false,
 		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: 2,
 	})
 
 	err = response.JSON(c.Writer, http.StatusOK, envelope{})
