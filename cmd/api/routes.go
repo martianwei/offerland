@@ -48,7 +48,7 @@ func (app *application) SetupRouter() *gin.Engine {
 	result := router.Group("/results")
 	{
 		result.POST("", app.createResult)
-		result.GET("", app.getUserResults)
+		result.GET("/:username", app.getUserResults)
 		result.GET("/all", app.getAllResults)
 	}
 
@@ -59,9 +59,9 @@ func (app *application) SetupRouter() *gin.Engine {
 	// 	_api.GET("/majors/:school", app.getMajorsBySchool)
 	// }
 
-	// user := router.Group("/user")
+	// user := router.Group("/users")
 	// {
-	// 	user.GET("/:user_id", usersHandler.GetUser)
+	// 	user.GET("/:id", app.GetUser)
 	// }
 	// postsHandler := handler.NewPostHandler(app.db)
 	post := router.Group("/posts")
