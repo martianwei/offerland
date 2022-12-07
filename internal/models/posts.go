@@ -12,12 +12,13 @@ import (
 )
 
 type Post struct {
-	PostID    uuid.UUID `json:"post_id"`
-	Title     string    `json:"title"`
-	AddResult bool      `json:"add_result"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"created_at"`
-	UserID    uuid.UUID `json:"user_id"`
+	PostID    uuid.UUID           `json:"post_id"`
+	Title     string              `json:"title"`
+	AddResult bool                `json:"add_result"`
+	Body      string              `json:"body"`
+	CreatedAt time.Time           `json:"created_at"`
+	UserID    uuid.UUID           `json:"user_id"`
+	filter    map[string][]string `json:"-"`
 }
 
 type PostModel struct {
@@ -149,7 +150,7 @@ func (m PostModel) Upsert(post *Post) error {
 	return err
 }
 
-func (m PostModel) GetAllPosts() ([]Post, error) {
+func (m PostModel) GetAllPosts(filter map[string][]string) ([]Post, error) {
 	var query string
 	cols := []string{
 		"post_id",
@@ -163,10 +164,30 @@ func (m PostModel) GetAllPosts() ([]Post, error) {
 		SELECT %s
 		FROM posts
 	`, strings.Join(cols, ","))
+	var args []any
+	var where []string
+	index := 1
+	for key, values := range filter {
+		if len(values) == 0 {
+			continue
+		}
+		var valueWhere []string
+		for _, value := range values {
+			valueWhere = append(valueWhere, fmt.Sprintf("$%d", index))
+			args = append(args, value)
+			index++
+		}
+		where = append(where, fmt.Sprintf("%s IN (%s)", key, strings.Join(valueWhere, ",")))
+	}
+
+	if len(where) > 0 {
+		query += fmt.Sprintf(" WHERE %s", strings.Join(where, " AND "))
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query)
+	rows, err := m.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
