@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -27,8 +26,6 @@ func (app *application) CreatePost(c *gin.Context) {
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
-
-	fmt.Println("input.Title: ", input.Title)
 
 	post := &models.Post{
 		PostID:    uuid.New(),
