@@ -5,5 +5,5 @@ CREATE TABLE user_to_results (
     announce_date DATE NOT NULL,
     status VARCHAR(255) NOT NULL,
     others VARCHAR(255) NOT NULL,
-    PRIMARY KEY (user_id, school_name, major_name, announce_date)
+    PRIMARY KEY (user_id, school_name, major_name)
 );

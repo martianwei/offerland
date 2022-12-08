@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -61,7 +60,7 @@ func (app *application) createResult(c *gin.Context) {
 
 func (app *application) getUserResults(c *gin.Context) {
 	username := c.Param("username")
-	fmt.Println("username: ", username)
+
 	user, err := app.models.Users.GetByUsername(username)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
