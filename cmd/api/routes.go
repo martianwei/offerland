@@ -35,11 +35,14 @@ func (app *application) SetupRouter() *gin.Engine {
 		auth.GET("/check_username/:username", app.checkUsername)
 		// Check if the email address is already in use
 		auth.GET("/check_email/:email", app.checkEmail)
+		auth.GET("/check_author/:authorname", app.checkAuthor)
 		// Login
 		auth.POST("/login", app.userLogin)
 		auth.POST("/googlelogin", app.userGoogleLogin)
 		// Logout
 		auth.POST("/logout", app.userLogout)
+		// Refresh token
+		// auth.POST("/refresh_token", app.refreshToken)
 	}
 	// Forgot password
 	router.POST("/forgot-password", app.userForgotPassword)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -59,15 +60,20 @@ func (app *application) createResult(c *gin.Context) {
 }
 
 func (app *application) getUserResults(c *gin.Context) {
-	username := c.Param("username")
+	viewUsername := c.Param("username")
 
-	user, err := app.models.Users.GetByUsername(username)
+	viewUser, err := app.models.Users.GetByUsername(viewUsername)
 	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			app.notFound(c.Writer, c.Request)
+		default:
+			app.serverError(c.Writer, c.Request, err)
+		}
 		return
 	}
 
-	results, err := app.models.Results.Get(user.ID)
+	results, err := app.models.Results.Get(viewUser.ID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
