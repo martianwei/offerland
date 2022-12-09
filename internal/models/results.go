@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/google/uuid"
 )
@@ -18,6 +19,10 @@ type Result struct {
 	Status       string    `json:"status"`
 	Others       string    `json:"others"`
 }
+
+var (
+	ErrUserNotFound = errors.New("user not found")
+)
 
 func (m *ResultModel) Delete(userID uuid.UUID) error {
 	query := `

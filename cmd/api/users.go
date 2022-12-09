@@ -559,3 +559,41 @@ func (app *application) checkUsername(c *gin.Context) {
 		app.serverError(c.Writer, c.Request, err)
 	}
 }
+
+func (app *application) checkAuthor(c *gin.Context) {
+	user := app.contextGetUser(c.Request)
+	if user == nil {
+		err := response.JSON(c.Writer, http.StatusOK, envelope{"is_Author": false})
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+	authorname := c.Param("authorname")
+	author, err := app.models.Users.GetByUsername(authorname)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			err = response.JSON(c.Writer, http.StatusOK, envelope{"is_Author": false})
+			if err != nil {
+				app.serverError(c.Writer, c.Request, err)
+			}
+		default:
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+
+	if author.ID == user.ID {
+		err = response.JSON(c.Writer, http.StatusOK, envelope{"is_Author": true})
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+
+	err = response.JSON(c.Writer, http.StatusOK, envelope{"is_Author": false})
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+	}
+}
