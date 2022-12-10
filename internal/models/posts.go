@@ -18,6 +18,7 @@ type Post struct {
 	Body      string              `json:"body"`
 	CreatedAt time.Time           `json:"created_at"`
 	UserID    uuid.UUID           `json:"user_id"`
+	User      interface{}         `json:"user"`
 	filter    map[string][]string `json:"-"`
 }
 
