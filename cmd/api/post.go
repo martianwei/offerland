@@ -154,6 +154,25 @@ func (app *application) GetAllPosts(c *gin.Context) {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
+
+	// embed user data, dont include activated field
+	for i, post := range posts {
+		user, err := app.models.Users.Get(post.UserID)
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+			return
+		}
+
+		// create a struct with only the fields we want to include
+		posts[i].User = struct {
+			Username string `json:"username"`
+			Photo    string `json:"photo"`
+		}{
+			Username: user.Username,
+			Photo:    "https://cdn2.iconfinder.com/data/icons/random-outline-3/48/random_14-512.png",
+		}
+	}
+
 	err = response.JSON(c.Writer, http.StatusOK, posts)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
