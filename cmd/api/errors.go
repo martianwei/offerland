@@ -69,6 +69,12 @@ func (app *application) inactiveAccount(w http.ResponseWriter, r *http.Request) 
 	app.errorMessage(w, r, http.StatusForbidden, message, nil)
 }
 
+func (app *application) expiredToken(w http.ResponseWriter, r *http.Request) {
+	app.logger.Warning("expired token")
+	message := "Your token has expired, please try again"
+	app.errorMessage(w, r, http.StatusForbidden, message, nil)
+}
+
 func (app *application) invalidAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 	app.errorMessage(w, r, http.StatusUnauthorized, "Invalid or missing authentication token", nil)
 }
