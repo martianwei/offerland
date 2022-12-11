@@ -555,7 +555,6 @@ func (app *application) checkUsername(c *gin.Context) {
 		return
 	}
 
-	app.logger.Warning("username is not available")
 	err = response.JSON(c.Writer, http.StatusOK, envelope{"available": false})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
