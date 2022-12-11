@@ -60,9 +60,9 @@ func (app *application) createResult(c *gin.Context) {
 }
 
 func (app *application) getUserResults(c *gin.Context) {
-	viewUsername := c.Param("username")
+	username := c.Param("username")
 
-	viewUser, err := app.models.Users.GetByUsername(viewUsername)
+	user, err := app.models.Users.GetByUsername(username)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
@@ -73,7 +73,7 @@ func (app *application) getUserResults(c *gin.Context) {
 		return
 	}
 
-	results, err := app.models.Results.Get(viewUser.ID)
+	results, err := app.models.Results.Get(user.ID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return

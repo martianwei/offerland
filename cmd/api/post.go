@@ -150,14 +150,9 @@ func (app *application) GetPost(c *gin.Context) {
 func (app *application) GetAllPosts(c *gin.Context) {
 	filter := c.Request.URL.Query()
 
-	// Check if user_id in filter exists in db
-	if _, ok := filter["user_id"]; ok {
-		userId, err := uuid.Parse(filter["user_id"][0])
-		if err != nil {
-			app.serverError(c.Writer, c.Request, err)
-			return
-		}
-		_, err = app.models.Users.Get(userId)
+	// Check if username in filter exists in db
+	if _, ok := filter["username"]; ok {
+		user, err := app.models.Users.GetByUsername(filter["username"][0])
 		if err != nil {
 			switch {
 			case errors.Is(err, models.ErrRecordNotFound):
@@ -167,6 +162,8 @@ func (app *application) GetAllPosts(c *gin.Context) {
 			}
 			return
 		}
+		filter["user_id"] = []string{user.ID.String()}
+		delete(filter, "username")
 	}
 
 	posts, err := app.models.Posts.GetAllPosts(filter)
