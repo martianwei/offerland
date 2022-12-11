@@ -54,8 +54,8 @@ func (app *application) userSignup(c *gin.Context) {
 
 	// If the user exists
 	if user != nil && user.Activated {
-		app.createConflict(c.Writer, c.Request)
-		return
+		fmt.Println("user exists")
+		input.Validator.AddFieldError("email", "This email address is already in use")
 	}
 
 	// If the user exists but is not activated, delete the existing user record
@@ -76,8 +76,8 @@ func (app *application) userSignup(c *gin.Context) {
 
 	// If the user exists
 	if user != nil && user.Activated {
-		app.createConflict(c.Writer, c.Request)
-		return
+		fmt.Println("user exists username")
+		input.Validator.AddFieldError("username", "This username is already in use")
 	}
 
 	// If the user exists but is not activated, delete the existing user record
@@ -89,8 +89,7 @@ func (app *application) userSignup(c *gin.Context) {
 		}
 	}
 
-	// Validate the input data
-	input.Validator.CheckField(validator.Matches(input.Email, validator.RgxEmail), "Email", "Must be a valid email address")
+	input.Validator.CheckField(validator.Matches(input.Email, validator.RgxEmail), "email", "Must be a valid email address")
 	input.Validator.CheckField(len(input.Password) >= 8, "password", "Password is too short, must be at least 8 characters")
 	input.Validator.CheckField(len(input.Password) <= 72, "password", "Password is too long, must be at most 72 characters")
 	input.Validator.CheckField(validator.NotIn(input.Password, password.CommonPasswords...), "password", "Password is too common")
