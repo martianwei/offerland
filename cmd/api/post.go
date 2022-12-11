@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -149,9 +150,39 @@ func (app *application) GetPost(c *gin.Context) {
 func (app *application) GetAllPosts(c *gin.Context) {
 	filter := c.Request.URL.Query()
 
+	// Check if user_id in filter exists in db
+	if _, ok := filter["user_id"]; ok {
+		userId, err := uuid.Parse(filter["user_id"][0])
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+			return
+		}
+		_, err = app.models.Users.Get(userId)
+		if err != nil {
+			switch {
+			case errors.Is(err, models.ErrRecordNotFound):
+				app.notFound(c.Writer, c.Request)
+			default:
+				app.serverError(c.Writer, c.Request, err)
+			}
+			return
+		}
+	}
+
 	posts, err := app.models.Posts.GetAllPosts(filter)
+	// Check if user exists, if not return empty array
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+
+	// If len of posts is 0, return empty array
+	if len(posts) == 0 {
+		// return empty array not null
+		err = response.JSON(c.Writer, http.StatusOK, []interface{}{})
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+		}
 		return
 	}
 
