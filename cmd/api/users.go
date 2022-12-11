@@ -282,10 +282,18 @@ func (app *application) GoogleLogin(c *gin.Context) {
 		return
 	}
 
-	app.logger.Info("Set REFRESH_TOKEN cookie")
-	app.logger.Info("REFRESH_TOKEN TTL", int(refreshToken.TTL))
-	c.SetCookie("REFRESH_TOKEN", refreshToken.Token, int(refreshToken.TTL), "/", "", true, true)
-	app.logger.Info("JSON response: ", envelope{"access_token": accessToken.Token})
+	app.logger.Info("Set REFRESH_TOKEN cookie", refreshToken)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "REFRESH_TOKEN",
+		Value:    refreshToken.Token,
+		Path:     "/",
+		Domain:   "",
+		MaxAge:   int(refreshToken.TTL.Seconds()),
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+	app.logger.Info("JSON response", envelope{"access_token": accessToken.Token})
 	err = response.JSON(c.Writer, http.StatusOK, envelope{"access_token": accessToken.Token})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
