@@ -111,7 +111,28 @@ func (app *application) getAllResults(c *gin.Context) {
 		resultsByUser[result.UserID] = append(resultsByUser[result.UserID], result)
 	}
 
-	err = response.JSON(c.Writer, http.StatusOK, envelope{"results": resultsByUser})
+	// resultsResponse: [{user_id: user_id, admitted_schools: [admitted_schools], rejected_schools: [rejected_schools]}}]
+	resultsResponse := []map[string]interface{}{}
+	for userID, results := range resultsByUser {
+		admittedSchools := []models.Result{}
+		rejectedSchools := []models.Result{}
+
+		for _, result := range results {
+			if result.Status == "admitted" {
+				admittedSchools = append(admittedSchools, result)
+			} else if result.Status == "rejected" {
+				rejectedSchools = append(rejectedSchools, result)
+			}
+		}
+
+		resultsResponse = append(resultsResponse, map[string]interface{}{
+			"user_id":          userID,
+			"admitted_schools": admittedSchools,
+			"rejected_schools": rejectedSchools,
+		})
+	}
+
+	err = response.JSON(c.Writer, http.StatusOK, envelope{"results": resultsResponse})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
