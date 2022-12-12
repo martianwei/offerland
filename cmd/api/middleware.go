@@ -14,7 +14,6 @@ import (
 func (app *application) authenticate(c *gin.Context) {
 	// If path is /refresh_token, skip authentication
 	if c.Request.URL.Path == "/auth/refresh_token" {
-		app.logger.Info("skip authentication")
 		c.Next()
 		return
 	}
@@ -23,9 +22,8 @@ func (app *application) authenticate(c *gin.Context) {
 	authorizationHeader := c.GetHeader("Authorization")
 
 	headerParts := strings.Split(authorizationHeader, " ")
-	app.logger.Info("headerParts", headerParts)
+
 	if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-		app.logger.Info("invalid token format")
 		app.contextSetUser(c, models.AnonymousUser)
 		c.Next()
 		return
@@ -36,41 +34,35 @@ func (app *application) authenticate(c *gin.Context) {
 	// contents doesn't match the signature (i.e. the token has been tampered with) // or the algorithm isn't valid.
 	claims, err := jwt.HMACCheck([]byte(token), []byte(app.config.jwt.accessTokenSecret))
 	if err != nil {
-		app.logger.Warning("invalid token check", err)
 		app.invalidAuthenticationToken(c.Writer, c.Request)
 		return
 	}
 
 	// Check if the JWT is still valid at this moment in time.
 	if !claims.Valid(time.Now()) {
-		app.logger.Warning("token expired", claims.Valid(time.Now()))
 		app.expiredToken(c.Writer, c.Request)
 		c.Abort()
 		return
 	}
 	// Check that the issuer is our application.
 	if claims.Issuer != "offerland.cc" {
-		app.logger.Warning("invalid issuer", claims.Issuer)
 		app.invalidAuthenticationToken(c.Writer, c.Request)
 		return
 	}
 	// Check that our application is in the expected audiences for the JWT.
 	if !claims.AcceptAudience("offerland.cc") {
-		app.logger.Warning("invalid audience", claims.Audiences)
 		app.invalidAuthenticationToken(c.Writer, c.Request)
 		return
 	}
 	// At this point, we know that the JWT is all OK and we can trust the data in // it. We extract the user ID from the claims subject and convert it from a // string into an int64.
 	userID, err := uuid.Parse(claims.Subject)
 	if err != nil {
-		app.logger.Warning("invalid subject", claims.Subject)
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
 	// Lookup the user record from the database.
 	user, err := app.models.Users.Get(userID)
 	if err != nil {
-		app.logger.Warning("invalid user", userID)
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
 			app.invalidAuthenticationToken(c.Writer, c.Request)
@@ -79,8 +71,7 @@ func (app *application) authenticate(c *gin.Context) {
 		}
 		return
 	}
-	// Add the user record to the request context and continue as normal.
-	app.logger.Info("user", user)
+	// Add the user record to the request context and continue as normal
 	app.contextSetUser(c, user)
 	c.Next()
 }

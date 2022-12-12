@@ -18,8 +18,6 @@ func (app *application) errorMessage(w http.ResponseWriter, r *http.Request, sta
 }
 
 func (app *application) serverError(w http.ResponseWriter, r *http.Request, err error) {
-	app.logger.Error(err)
-
 	message := "The server encountered a problem and could not process your request"
 	app.errorMessage(w, r, http.StatusInternalServerError, message, nil)
 }
@@ -70,7 +68,6 @@ func (app *application) inactiveAccount(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *application) expiredToken(w http.ResponseWriter, r *http.Request) {
-	app.logger.Warning("expired token")
 	message := "Your token has expired, please try again"
 	app.errorMessage(w, r, http.StatusForbidden, message, nil)
 }
