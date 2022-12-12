@@ -144,7 +144,8 @@ func (app *application) Signup(c *gin.Context) {
 
 		err = app.mailer.Send(user.Email, data, "user_activation.tmpl")
 		if err != nil {
-			app.logger.Error(err)
+
+			app.serverError(c.Writer, c.Request, err)
 		}
 	})
 	err = response.JSON(c.Writer, http.StatusCreated, envelope{"activation_token": activationToken.Plaintext})
@@ -155,7 +156,6 @@ func (app *application) Signup(c *gin.Context) {
 }
 
 func (app *application) Login(c *gin.Context) {
-	app.logger.Info("Login")
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -190,19 +190,17 @@ func (app *application) Login(c *gin.Context) {
 	}
 
 	if !matches {
-		app.logger.Warning("Invalid credentials")
+
 		app.invalidCredentials(c.Writer, c.Request)
 		return
 	}
 
-	app.logger.Info("Generate token pair")
 	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(user.ID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
 
-	app.logger.Info("Set REFRESH_TOKEN cookie", refreshToken)
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "REFRESH_TOKEN",
 		Value:    refreshToken.Token,
@@ -213,7 +211,6 @@ func (app *application) Login(c *gin.Context) {
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
 	})
-	app.logger.Info("JSON response", envelope{"access_token": accessToken.Token})
 	err = response.JSON(c.Writer, http.StatusOK, envelope{"access_token": accessToken.Token})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
@@ -221,7 +218,6 @@ func (app *application) Login(c *gin.Context) {
 }
 
 func (app *application) GoogleLogin(c *gin.Context) {
-	app.logger.Info("GoogleLogin")
 	var input struct {
 		ClientID  string              `json:"client_id"`
 		IDToken   string              `json:"id_token"`
@@ -233,7 +229,6 @@ func (app *application) GoogleLogin(c *gin.Context) {
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
-	app.logger.Info("Decode JSON", input)
 	payload, err := idtoken.Validate(context.Background(), input.IDToken, funcs.LoadEnv("GOOGLE_CLIENT_ID"))
 	if err != nil {
 		panic(err)
@@ -275,14 +270,12 @@ func (app *application) GoogleLogin(c *gin.Context) {
 		}
 	}
 
-	app.logger.Info("Generate token pair")
 	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(user.ID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
 
-	app.logger.Info("Set REFRESH_TOKEN cookie", refreshToken)
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "REFRESH_TOKEN",
 		Value:    refreshToken.Token,
@@ -293,7 +286,6 @@ func (app *application) GoogleLogin(c *gin.Context) {
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
 	})
-	app.logger.Info("JSON response", envelope{"access_token": accessToken.Token})
 	err = response.JSON(c.Writer, http.StatusOK, envelope{"access_token": accessToken.Token})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
@@ -301,14 +293,11 @@ func (app *application) GoogleLogin(c *gin.Context) {
 }
 
 func (app *application) Logout(c *gin.Context) {
-	app.logger.Info("Logout")
 	user := app.contextGetUser(c.Request)
 	if user == nil {
 		return
 	}
-	app.logger.Info("Logout user", user)
 
-	app.logger.Info("Remove REFRESH_TOKEN cookie")
 	// Remove the refresh token cookie from the user's browser.
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:    "REFRESH_TOKEN",

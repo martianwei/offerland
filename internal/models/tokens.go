@@ -268,17 +268,6 @@ func (m TokenModel) InsertResetToken(token *Token) error {
 	return err
 }
 
-func (m TokenModel) DeleteJWTTByUserID(userID uuid.UUID) error {
-	query := `
-		DELETE FROM jwt_tokens
-		WHERE user_id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_, err := m.DB.ExecContext(ctx, query, userID)
-	return err
-}
-
 // DeleteAllForUser() deletes all tokens for a specific user and scope.
 func (m TokenModel) DeleteActivationTokensForUser(userID uuid.UUID) error {
 	query := `
