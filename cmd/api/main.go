@@ -77,10 +77,9 @@ import (
 // application (development, staging, production, etc.). We will read in these
 // configuration settings from command-line flags when the application starts.
 type config struct {
-	port    int
-	baseURL string
-	env     string
-	db      struct {
+	port int
+	env  string
+	db   struct {
 		dsn          string
 		automigrate  bool
 		maxOpenConns int
@@ -88,7 +87,8 @@ type config struct {
 		maxIdleTime  string
 	}
 	jwt struct {
-		secretKey string
+		accessTokenSecret  string
+		refreshTokenSecret string
 	}
 	smtp struct {
 		host     string
@@ -131,7 +131,8 @@ func main() {
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
 
-	flag.StringVar(&cfg.jwt.secretKey, "jwt-secret-key", funcs.LoadEnv("JWT_SECRET"), "secret key for JWT authentication")
+	flag.StringVar(&cfg.jwt.accessTokenSecret, "access-token-secret", funcs.LoadEnv("ACCESS_TOKEN_SECRET"), "secret key for access token")
+	flag.StringVar(&cfg.jwt.refreshTokenSecret, "refresh-token-secret", funcs.LoadEnv("REFRESH_TOKEN_SECRET"), "secret key for refresh token")
 
 	flag.StringVar(&cfg.smtp.host, "smtp-host", "smtp.gmail.com", "smtp host")
 	flag.IntVar(&cfg.smtp.port, "smtp-port", 587, "smtp port")

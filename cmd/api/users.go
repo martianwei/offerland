@@ -31,7 +31,7 @@ func (app *application) whoAmI(c *gin.Context) {
 	}
 }
 
-func (app *application) userSignup(c *gin.Context) {
+func (app *application) Signup(c *gin.Context) {
 	var input struct {
 		Username  string              `json:"username"`
 		Email     string              `json:"email"`
@@ -144,7 +144,8 @@ func (app *application) userSignup(c *gin.Context) {
 
 		err = app.mailer.Send(user.Email, data, "user_activation.tmpl")
 		if err != nil {
-			app.logger.Error(err)
+
+			app.serverError(c.Writer, c.Request, err)
 		}
 	})
 	err = response.JSON(c.Writer, http.StatusCreated, envelope{"activation_token": activationToken.Plaintext})
@@ -154,7 +155,7 @@ func (app *application) userSignup(c *gin.Context) {
 	}
 }
 
-func (app *application) userLogin(c *gin.Context) {
+func (app *application) Login(c *gin.Context) {
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -189,36 +190,34 @@ func (app *application) userLogin(c *gin.Context) {
 	}
 
 	if !matches {
+
 		app.invalidCredentials(c.Writer, c.Request)
 		return
 	}
 
-	// Generate new JWT token
-	ttl := 1 * 24 * time.Hour
-	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, ttl)
+	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(user.ID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
 
-	// Encode the token to JSON and send it in the response along with a 201 Created
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "AUTH",
-		Value:    jwtToken.Token,
+		Name:     "REFRESH_TOKEN",
+		Value:    refreshToken.Token,
 		Path:     "/",
 		Domain:   "",
-		MaxAge:   int(ttl.Seconds()),
+		MaxAge:   int(refreshToken.TTL.Seconds()),
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
 	})
-	err = response.JSON(c.Writer, http.StatusOK, envelope{})
+	err = response.JSON(c.Writer, http.StatusOK, envelope{"access_token": accessToken.Token})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}
 }
 
-func (app *application) userGoogleLogin(c *gin.Context) {
+func (app *application) GoogleLogin(c *gin.Context) {
 	var input struct {
 		ClientID  string              `json:"client_id"`
 		IDToken   string              `json:"id_token"`
@@ -230,7 +229,6 @@ func (app *application) userGoogleLogin(c *gin.Context) {
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
-
 	payload, err := idtoken.Validate(context.Background(), input.IDToken, funcs.LoadEnv("GOOGLE_CLIENT_ID"))
 	if err != nil {
 		panic(err)
@@ -272,54 +270,48 @@ func (app *application) userGoogleLogin(c *gin.Context) {
 		}
 	}
 
-	// Generate new JWT token
-	ttl := 1 * 24 * time.Hour
-	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, ttl)
+	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(user.ID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
 
-	// Encode the token to JSON and send it in the response along with a 201 Created
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "AUTH",
-		Value:    jwtToken.Token,
+		Name:     "REFRESH_TOKEN",
+		Value:    refreshToken.Token,
 		Path:     "/",
 		Domain:   "",
-		MaxAge:   int(ttl.Seconds()),
+		MaxAge:   int(refreshToken.TTL.Seconds()),
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
 	})
-
-	err = response.JSON(c.Writer, http.StatusOK, envelope{})
+	err = response.JSON(c.Writer, http.StatusOK, envelope{"access_token": accessToken.Token})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}
 }
 
-func (app *application) userLogout(c *gin.Context) {
-	// Get the JWT token string from the current request.
+func (app *application) Logout(c *gin.Context) {
 	user := app.contextGetUser(c.Request)
 	if user == nil {
 		return
 	}
 
-	// Delete the token from the database.
-	err := app.models.Tokens.DeleteJWTTByUserID(user.ID)
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-		return
-	}
-
-	// Set an empty JWT token in the response, with an expiry time of -1 day.
-	c.SetCookie("AUTH", "", -1, "/", "", false, true)
+	// Remove the refresh token cookie from the user's browser.
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:    "REFRESH_TOKEN",
+		Value:   "",
+		Path:    "/",
+		MaxAge:  -1,
+		Expires: time.Now().Add(-time.Hour),
+	})
 
 	// Send a 204 No Content response.
 	c.Status(http.StatusNoContent)
 }
 
-func (app *application) userActivate(c *gin.Context) {
+func (app *application) Activate(c *gin.Context) {
 	user := app.userVerification(c)
 	if user == nil {
 		return
@@ -344,26 +336,24 @@ func (app *application) userActivate(c *gin.Context) {
 		return
 	}
 
-	ttl := 1 * 24 * time.Hour
-	jwtToken, err := app.models.Tokens.NewJWTToken(user.ID, ttl)
+	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(user.ID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
 
-	// Encode the token to JSON and send it in the response along with a 201 Created
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "AUTH",
-		Value:    jwtToken.Token,
+		Name:     "REFRESH_TOKEN",
+		Value:    refreshToken.Token,
 		Path:     "/",
 		Domain:   "",
-		MaxAge:   int(ttl.Seconds()),
+		MaxAge:   int(refreshToken.TTL),
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
 	})
 
-	err = response.JSON(c.Writer, http.StatusOK, envelope{})
+	err = response.JSON(c.Writer, http.StatusOK, envelope{"access_token": accessToken.Token})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}
@@ -553,6 +543,7 @@ func (app *application) checkUsername(c *gin.Context) {
 		}
 		return
 	}
+
 	err = response.JSON(c.Writer, http.StatusOK, envelope{"available": false})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)

@@ -30,9 +30,88 @@ type Token struct {
 }
 
 type JWTToken struct {
-	Token  string    `json:"token"`  // The plaintext version of the token
-	UserID uuid.UUID `json:"-"`      // The ID of the user the token is associated with
-	Expiry time.Time `json:"expiry"` // The expiry time for the token
+	Token string        `json:"token"`
+	TTL   time.Duration `json:"ttl"`
+}
+
+// Generate new token pair
+func (m *TokenModel) NewTokenPair(userID uuid.UUID) (*JWTToken, *JWTToken, error) {
+	// Generate access token
+	accessTTL := funcs.LoadEnv("ACCESS_TOKEN_TTL")
+	accessTTLDuration, err := time.ParseDuration(accessTTL)
+	if err != nil {
+		return nil, nil, err
+	}
+	accessTokenSecret := funcs.LoadEnv("ACCESS_TOKEN_SECRET")
+	accessToken, err := NewJWT(userID, accessTTLDuration, accessTokenSecret)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Generate refresh token
+	refreshTokenSecret := funcs.LoadEnv("REFRESH_TOKEN_SECRET")
+	refreshTTL := funcs.LoadEnv("REFRESH_TOKEN_TTL")
+	refreshTTLDuration, err := time.ParseDuration(refreshTTL)
+	if err != nil {
+		return nil, nil, err
+	}
+	refreshToken, err := NewJWT(userID, refreshTTLDuration, refreshTokenSecret)
+	if err != nil {
+		return nil, nil, err
+	}
+	m.DeleteRefreshTokenByUserID(userID)
+	m.InsertRefreshToken(refreshToken, userID)
+	// Return the tokens.
+	return accessToken, refreshToken, nil
+}
+
+func (m *TokenModel) InsertRefreshToken(refreshToken *JWTToken, userID uuid.UUID) error {
+	query := `
+		INSERT INTO refresh_tokens (token, user_id, created_at, expires_at)
+		VALUES ($1, $2, $3, $4)
+	`
+	_, err := m.DB.Exec(query, refreshToken.Token, userID, time.Now(), time.Now().Add(refreshToken.TTL))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *TokenModel) GetUserIDByRefreshToken(refreshToken string) (uuid.UUID, error) {
+	query := `
+		SELECT user_id FROM refresh_tokens
+		WHERE token = $1
+	`
+	var userID uuid.UUID
+	err := m.DB.QueryRow(query, refreshToken).Scan(&userID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return userID, nil
+}
+
+func (m *TokenModel) DeleteRefreshToken(refreshToken string) error {
+	query := `
+		DELETE FROM refresh_tokens
+		WHERE token = $1
+	`
+	_, err := m.DB.Exec(query, refreshToken)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *TokenModel) DeleteRefreshTokenByUserID(userID uuid.UUID) error {
+	query := `
+		DELETE FROM refresh_tokens
+		WHERE user_id = $1
+	`
+	_, err := m.DB.Exec(query, userID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func generateToken(userID uuid.UUID, ttl time.Duration) (*Token, error) {
@@ -71,30 +150,29 @@ func generateToken(userID uuid.UUID, ttl time.Duration) (*Token, error) {
 	return token, nil
 }
 
-func generateJWTToken(userID uuid.UUID, ttl time.Duration) (*JWTToken, error) {
+func NewJWT(userID uuid.UUID, ttl time.Duration, secret string) (*JWTToken, error) {
 	var claims jwt.Claims
 	claims.Subject = userID.String()
 
-	expiry := time.Now().Add(24 * time.Hour)
+	expiry := time.Now().Add(ttl)
 	claims.Issued = jwt.NewNumericTime(time.Now())
 	claims.NotBefore = jwt.NewNumericTime(time.Now())
 	claims.Expires = jwt.NewNumericTime(expiry)
 
-	claims.Issuer = funcs.LoadEnv("BASE_URL")
-	claims.Audiences = []string{funcs.LoadEnv("BASE_URL")}
+	claims.Issuer = "offerland.cc"
+	claims.Audiences = []string{"offerland.cc"}
 
-	jwtBytes, err := claims.HMACSign(jwt.HS256, []byte(funcs.LoadEnv("JWT_SECRET")))
+	jwtBytes, err := claims.HMACSign(jwt.HS256, []byte(secret))
 	if err != nil {
 		return nil, err
 	}
 
-	jwtToken := JWTToken{
-		Token:  string(jwtBytes),
-		UserID: userID,
-		Expiry: expiry,
+	jwtToken := &JWTToken{
+		Token: string(jwtBytes),
+		TTL:   ttl,
 	}
 
-	return &jwtToken, nil
+	return jwtToken, nil
 }
 
 func (m TokenModel) generatePasscode() (string, error) {
@@ -143,15 +221,6 @@ func (m TokenModel) NewResetToken(userID uuid.UUID, ttl time.Duration) (*Token, 
 	return token, err
 }
 
-func (m TokenModel) NewJWTToken(userID uuid.UUID, ttl time.Duration) (*JWTToken, error) {
-	token, err := generateJWTToken(userID, ttl)
-	if err != nil {
-		return nil, err
-	}
-	err = m.InsertJWTToken(token)
-	return token, err
-}
-
 func (m TokenModel) Validate(passcode string, tokenPlaintext string) (bool, error) {
 	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
 	query := `
@@ -196,28 +265,6 @@ func (m TokenModel) InsertResetToken(token *Token) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_, err := m.DB.ExecContext(ctx, query, args...)
-	return err
-}
-
-func (m TokenModel) InsertJWTToken(jwtToken *JWTToken) error {
-	query := `
-	INSERT INTO jwt_tokens (token, user_id, expiry) VALUES ($1, $2, $3)`
-
-	args := []any{jwtToken.Token, jwtToken.UserID, jwtToken.Expiry}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_, err := m.DB.ExecContext(ctx, query, args...)
-	return err
-}
-
-func (m TokenModel) DeleteJWTTByUserID(userID uuid.UUID) error {
-	query := `
-		DELETE FROM jwt_tokens
-		WHERE user_id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_, err := m.DB.ExecContext(ctx, query, userID)
 	return err
 }
 

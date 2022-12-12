@@ -28,21 +28,21 @@ func (app *application) SetupRouter() *gin.Engine {
 	auth := router.Group("/auth")
 	{
 		// Sign up
-		auth.POST("/signup", app.userSignup)
+		auth.POST("/signup", app.Signup)
 		// Activate account
-		auth.POST("/activate/:token", app.userActivate)
+		auth.POST("/activate/:token", app.Activate)
 		// Check if the username is already in use
 		auth.GET("/check_username/:username", app.checkUsername)
 		// Check if the email address is already in use
 		auth.GET("/check_email/:email", app.checkEmail)
 		auth.GET("/check_author/:authorname", app.checkAuthor)
 		// Login
-		auth.POST("/login", app.userLogin)
-		auth.POST("/googlelogin", app.userGoogleLogin)
+		auth.POST("/login", app.Login)
+		auth.POST("/googlelogin", app.GoogleLogin)
 		// Logout
-		auth.POST("/logout", app.userLogout)
+		auth.POST("/logout", app.Logout)
 		// Refresh token
-		// auth.POST("/refresh_token", app.refreshToken)
+		auth.POST("/refresh_token", app.refreshToken)
 	}
 	// Forgot password
 	router.POST("/forgot-password", app.userForgotPassword)
