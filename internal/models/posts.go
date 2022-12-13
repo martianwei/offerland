@@ -12,14 +12,12 @@ import (
 )
 
 type Post struct {
-	PostID    uuid.UUID           `json:"post_id"`
-	Title     string              `json:"title"`
-	AddResult bool                `json:"add_result"`
-	Body      string              `json:"body"`
-	CreatedAt time.Time           `json:"created_at"`
-	UserID    uuid.UUID           `json:"user_id"`
-	User      interface{}         `json:"user"`
-	filter    map[string][]string `json:"-"`
+	PostID    uuid.UUID `json:"post_id"`
+	Title     string    `json:"title"`
+	AddResult bool      `json:"add_result"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 type PostModel struct {

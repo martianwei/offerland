@@ -20,6 +20,7 @@ type User struct {
 	ID        uuid.UUID `json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
 	Username  string    `json:"username"`
+	Photo     string    `json:"photo"`
 	Email     string    `json:"-"`
 	Password  string    `json:"-"`
 	ISS       string    `json:"-"`

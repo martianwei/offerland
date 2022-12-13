@@ -52,7 +52,7 @@ func (app *application) SetupRouter() *gin.Engine {
 	{
 		result.POST("", app.createResult)
 		result.GET("/:username", app.getUserResults)
-		result.GET("/all", app.getAllResults)
+		result.GET("", app.getAllResults)
 	}
 
 	// _api := router.Group("/_api")

@@ -125,8 +125,14 @@ func (app *application) getAllResults(c *gin.Context) {
 			}
 		}
 
+		user, err := app.models.Users.Get(userID)
+		if err != nil {
+			app.serverError(c.Writer, c.Request, err)
+			return
+		}
 		resultsResponse = append(resultsResponse, map[string]interface{}{
 			"user_id":          userID,
+			"user":             user,
 			"admitted_schools": admittedSchools,
 			"rejected_schools": rejectedSchools,
 		})
