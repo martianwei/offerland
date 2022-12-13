@@ -397,7 +397,7 @@ func (app *application) userForgotPassword(c *gin.Context) {
 	app.background(func() {
 		data := map[string]any{
 			"username":  user.Username,
-			"resetLink": fmt.Sprintf("http://%s/reset-forgot-password/%s", funcs.LoadEnv("FRONTEND_URL"), token.Plaintext),
+			"resetLink": fmt.Sprintf("%s/reset-forgot-password/%s", funcs.LoadEnv("FRONTEND_URL"), token.Plaintext),
 		}
 
 		err = app.mailer.Send(user.Email, data, "user_forgot_password.tmpl")
