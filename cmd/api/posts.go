@@ -127,21 +127,30 @@ func (app *application) GetPost(c *gin.Context) {
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
-	user := app.contextGetUser(c.Request)
-	if user == models.AnonymousUser {
-		return
-	}
+
 	if err != nil {
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
 
-	result, err := app.models.Posts.GetPostByID(postID)
+	post, err := app.models.Posts.GetPostByID(postID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
-	err = response.JSON(c.Writer, http.StatusOK, result)
+
+	// Embed user in post
+	user, err := app.models.Users.Get(post.UserID)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+	postResponse := map[string]interface{}{
+		"user": user,
+		"post": post,
+	}
+
+	err = response.JSON(c.Writer, http.StatusOK, postResponse)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}
