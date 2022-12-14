@@ -1,5 +1,6 @@
-include .env
-
+ifneq ("$(wildcard .env)", "")
+    include .env
+endif
 # ==================================================================================== # 
 # HELPERS
 # ==================================================================================== #
@@ -20,12 +21,12 @@ confirm:
 ## run/api: run the cmd/api application
 .PHONY: run/api 
 run/api:
-	go run ./cmd/api -db-dsn=${OFFERLAND_DB_DSN}
+	go run ./cmd/api -db-dsn=${DB_DSN}
 
 ## db/psql: connect to the database using psql
 .PHONY: db/psql 
 db/psql:
-	psql ${OFFERLAND_DB_DSN}
+	psql ${DB_DSN}
 	
 ## db/migrations/new name=$1: create a new database migration
 .PHONY: db/migrations/new 
@@ -37,13 +38,13 @@ db/migrations/new:
 .PHONY: db/migrations/up 
 db/migrations/up: confirm
 	@echo 'Running up migrations...'
-	migrate -path ./assets/migrations -database ${OFFERLAND_DB_DSN} up
+	migrate -path ./assets/migrations -database ${DB_DSN} up
 
 ## db/migrations/down: apply all down database migrations
 .PHONY: db/migrations/down
 db/migrations/down: confirm
 	@echo 'Running down migrations...'
-	migrate -path ./assets/migrations -database ${OFFERLAND_DB_DSN} down
+	migrate -path ./assets/migrations -database ${DB_DSN} down
 
 ## db/migrations/reset: reset all database migrations
 .PHONY: db/migrations/reset
@@ -91,3 +92,18 @@ build/api:
 swagger:
 	swagger generate spec -o ./swagger.json
 	swagger serve -F=swagger ./swagger.json
+	
+# ==================================================================================== #
+# DOCKER
+# ==================================================================================== #
+
+## docker/build: build the docker image
+.PHONY: docker/build
+docker/build:
+	docker build -t ${DOCKER_IMAGE} .
+	
+## docker/run: run the docker image
+.PHONY: docker/run
+docker/run:
+	docker run -p 8080:8080 ${DOCKER_IMAGE}
+	

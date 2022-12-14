@@ -18,16 +18,22 @@ GOOGLE_CLIENT_ID=""
 JWT_SECRET=""
 ```
 
-### Database Setup
+## Database Setup
 
--   psql
--   CREATE DATABASE offerland;
--   CREATE ROLE offerland WITH LOGIN PASSWORD 'pa55word';
--   ctrl + d
--   psql --host=localhost --dbname=offerland --username=offerland
--   ctrl + d
--   make db/migrations/up
+- psql
+- CREATE DATABASE offerland;
+- CREATE ROLE offerland WITH LOGIN PASSWORD 'pa55word';
+- ctrl + d
+- psql --host=localhost --dbname=offerland --username=offerland
+- ctrl + d
+- make db/migrations/up
 
-### Go
+## Go
 - go get ./...
 - make run/api
+
+## Docker
+### Build
+- make docker/build
+### Run
+- make docker/run
