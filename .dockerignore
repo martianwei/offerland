@@ -1,5 +1,5 @@
 # flyctl launch added from .gitignore
-# **/.env
+**/.env
 **/*.log
 **/.vscode
 **/.prettierignore
