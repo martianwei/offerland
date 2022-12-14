@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pascaldekloe/jwt"
-	"offerland.cc/internal/funcs"
 )
 
 // Define a Token struct to hold the data for an individual token. This includes the
@@ -35,32 +34,32 @@ type JWTToken struct {
 }
 
 // Generate new token pair
-func (m *TokenModel) NewTokenPair(userID uuid.UUID) (*JWTToken, *JWTToken, error) {
+func (m *TokenModel) NewTokenPair(userID uuid.UUID, accessTokenSecret string, accessTokenTTL string, refreshTokenSecret string, refreshTokenTTL string) (*JWTToken, *JWTToken, error) {
 	// Generate access token
-	accessTTL := funcs.LoadEnv("ACCESS_TOKEN_TTL")
-	accessTTLDuration, err := time.ParseDuration(accessTTL)
+	accessTokenTTLDuration, err := time.ParseDuration(accessTokenTTL)
 	if err != nil {
 		return nil, nil, err
 	}
-	accessTokenSecret := funcs.LoadEnv("ACCESS_TOKEN_SECRET")
-	accessToken, err := NewJWT(userID, accessTTLDuration, accessTokenSecret)
+
+	accessToken, err := NewJWT(userID, accessTokenTTLDuration, accessTokenSecret)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Generate refresh token
-	refreshTokenSecret := funcs.LoadEnv("REFRESH_TOKEN_SECRET")
-	refreshTTL := funcs.LoadEnv("REFRESH_TOKEN_TTL")
-	refreshTTLDuration, err := time.ParseDuration(refreshTTL)
+	refreshTokenTTLDuration, err := time.ParseDuration(refreshTokenTTL)
 	if err != nil {
 		return nil, nil, err
 	}
-	refreshToken, err := NewJWT(userID, refreshTTLDuration, refreshTokenSecret)
+
+	refreshToken, err := NewJWT(userID, refreshTokenTTLDuration, refreshTokenSecret)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	m.DeleteRefreshTokenByUserID(userID)
 	m.InsertRefreshToken(refreshToken, userID)
+
 	// Return the tokens.
 	return accessToken, refreshToken, nil
 }

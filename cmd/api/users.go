@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"google.golang.org/api/idtoken"
-	"offerland.cc/internal/funcs"
 	"offerland.cc/internal/models"
 	"offerland.cc/internal/password"
 	"offerland.cc/internal/request"
@@ -54,7 +53,6 @@ func (app *application) Signup(c *gin.Context) {
 
 	// If the user exists
 	if user != nil && user.Activated {
-		fmt.Println("user exists")
 		input.Validator.AddFieldError("email", "This email address is already in use")
 	}
 
@@ -76,7 +74,6 @@ func (app *application) Signup(c *gin.Context) {
 
 	// If the user exists
 	if user != nil && user.Activated {
-		fmt.Println("user exists username")
 		input.Validator.AddFieldError("username", "This username is already in use")
 	}
 
@@ -195,7 +192,11 @@ func (app *application) Login(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(user.ID)
+	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(
+		user.ID,
+		app.config.ACCESS_TOKEN_SECRET, app.config.ACCESS_TOKEN_TTL,
+		app.config.REFRESH_TOKEN_SECRET, app.config.REFRESH_TOKEN_TTL,
+	)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -229,12 +230,12 @@ func (app *application) GoogleLogin(c *gin.Context) {
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
-	payload, err := idtoken.Validate(context.Background(), input.IDToken, funcs.LoadEnv("GOOGLE_CLIENT_ID"))
+	payload, err := idtoken.Validate(context.Background(), input.IDToken, app.config.GOOGLE_CLIENT_ID)
 	if err != nil {
 		panic(err)
 	}
 
-	input.Validator.CheckField(payload.Claims["aud"].(string) == funcs.LoadEnv("GOOGLE_CLIENT_ID"), "Server", "ClientID is not valid")
+	input.Validator.CheckField(payload.Claims["aud"].(string) == app.config.GOOGLE_CLIENT_ID, "Server", "ClientID is not valid")
 	input.Validator.CheckField(payload.Claims["iss"].(string) == "https://accounts.google.com", "Server", "ISS is not valid")
 
 	if input.Validator.HasErrors() {
@@ -270,7 +271,12 @@ func (app *application) GoogleLogin(c *gin.Context) {
 		}
 	}
 
-	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(user.ID)
+	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(
+		user.ID,
+		app.config.ACCESS_TOKEN_SECRET, app.config.ACCESS_TOKEN_TTL,
+		app.config.REFRESH_TOKEN_SECRET, app.config.REFRESH_TOKEN_TTL,
+	)
+
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -336,7 +342,11 @@ func (app *application) Activate(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(user.ID)
+	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(
+		user.ID,
+		app.config.ACCESS_TOKEN_SECRET, app.config.ACCESS_TOKEN_TTL,
+		app.config.REFRESH_TOKEN_SECRET, app.config.REFRESH_TOKEN_TTL,
+	)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -397,7 +407,7 @@ func (app *application) userForgotPassword(c *gin.Context) {
 	app.background(func() {
 		data := map[string]any{
 			"username":  user.Username,
-			"resetLink": fmt.Sprintf("%s/reset-forgot-password/%s", funcs.LoadEnv("FRONTEND_URL"), token.Plaintext),
+			"resetLink": fmt.Sprintf("%s/reset-forgot-password/%s", app.config.REACT_APP_URL, token.Plaintext),
 		}
 
 		err = app.mailer.Send(user.Email, data, "user_forgot_password.tmpl")

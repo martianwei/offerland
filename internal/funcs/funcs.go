@@ -4,16 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"log"
 	"math"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
-	"github.com/joho/godotenv"
 	"golang.org/x/exp/slices"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -57,14 +54,6 @@ var TemplateFuncs = template.FuncMap{
 	// URL functions
 	"urlSetParam": urlSetParam,
 	"urlDelParam": urlDelParam,
-}
-
-func LoadEnv(key string) string {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-	return os.Getenv(key)
 }
 
 func formatTime(format string, t time.Time) string {

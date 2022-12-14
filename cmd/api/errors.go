@@ -35,11 +35,6 @@ func (app *application) badRequest(w http.ResponseWriter, r *http.Request, err e
 	app.errorMessage(w, r, http.StatusBadRequest, err.Error(), nil)
 }
 
-func (app *application) createConflict(w http.ResponseWriter, r *http.Request) {
-	message := "unable to create the record due to a conflict, please try again"
-	app.errorMessage(w, r, http.StatusConflict, message, nil)
-}
-
 func (app *application) editConflict(w http.ResponseWriter, r *http.Request) {
 	message := "unable to update the record due to an edit conflict, please try again"
 	app.errorMessage(w, r, http.StatusConflict, message, nil)

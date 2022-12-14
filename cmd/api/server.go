@@ -14,7 +14,7 @@ import (
 func (app *application) serve() error {
 	// Declare a HTTP server using the same settings as in our main() function.
 	srv := &http.Server{
-		Addr:         fmt.Sprintf("0.0.0.0:%d", app.config.port),
+		Addr:         fmt.Sprintf("0.0.0.0:%d", app.config.PORT),
 		Handler:      app.SetupRouter(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
@@ -68,7 +68,7 @@ func (app *application) serve() error {
 	}()
 
 	// Likewise log a "starting server" message.
-	app.logger.Info("Starting %s server on %s", app.config.env, srv.Addr)
+	app.logger.Info("Starting %s server on %s", app.config.ENV, srv.Addr)
 	// Calling Shutdown() on our server will cause ListenAndServe() to immediately
 	// return a http.ErrServerClosed error. So if we see this error, it is actually a
 	// good thing and an indication that the graceful shutdown has started. So we check
