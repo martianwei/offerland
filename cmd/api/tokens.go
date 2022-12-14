@@ -19,7 +19,7 @@ func (app *application) refreshToken(c *gin.Context) {
 	}
 
 	// check if refresh token is valid and match database
-	claims, err := jwt.HMACCheck([]byte(refreshTokenCookie), []byte(app.config.jwt.refreshTokenSecret))
+	claims, err := jwt.HMACCheck([]byte(refreshTokenCookie), []byte(app.config.REFRESH_TOKEN_SECRET))
 	if err != nil {
 
 		app.invalidAuthenticationToken(c.Writer, c.Request)
@@ -55,7 +55,12 @@ func (app *application) refreshToken(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(foundUserID)
+	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(
+		foundUserID,
+		app.config.ACCESS_TOKEN_SECRET, app.config.ACCESS_TOKEN_TTL,
+		app.config.REFRESH_TOKEN_SECRET, app.config.REFRESH_TOKEN_TTL,
+	)
+
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return

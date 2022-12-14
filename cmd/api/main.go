@@ -56,16 +56,14 @@ package main
 
 import (
 	"database/sql"
-	"flag"
 	"log"
 	"os"
 	"path"
-	"strconv"
 	"sync"
 
 	_ "github.com/lib/pq"
+	"offerland.cc/configs"
 	"offerland.cc/internal/database"
-	"offerland.cc/internal/funcs"
 	"offerland.cc/internal/leveledlog"
 	"offerland.cc/internal/models"
 	"offerland.cc/internal/smtp"
@@ -76,34 +74,12 @@ import (
 // server to listen on, and the name of the current operating environment for the
 // application (development, staging, production, etc.). We will read in these
 // configuration settings from command-line flags when the application starts.
-type config struct {
-	port int
-	env  string
-	db   struct {
-		dsn          string
-		automigrate  bool
-		maxOpenConns int
-		maxIdleConns int
-		maxIdleTime  string
-	}
-	jwt struct {
-		accessTokenSecret  string
-		refreshTokenSecret string
-	}
-	smtp struct {
-		host     string
-		port     int
-		username string
-		password string
-		from     string
-	}
-}
 
 // Define an application struct to hold the dependencies for our HTTP handlers, helpers,
 // and middleware. At the moment this only contains a copy of the config struct and a
 // logger, but it will grow to include a lot more as our build progresses.
 type application struct {
-	config config
+	config *configs.Config
 	logger *leveledlog.Logger
 	models *models.Models
 	db     *sql.DB
@@ -113,39 +89,18 @@ type application struct {
 
 func main() {
 	// Declare an instance of the config struct.
-	var cfg config
+	cfg, err := configs.LoadConfig(".")
+	if err != nil {
+		log.Fatal(err)
+	}
 	// Read the value of the port and env command-line flags into the config struct. We
 	// default to using the port number 8080 and the environment "development" if no
 	// corresponding flags are provided.
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	cfg.port, _ = strconv.Atoi(port)
-	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
-	flag.StringVar(&cfg.db.dsn, "db-dsn", funcs.LoadEnv("OFFERLAND_DB_DSN"), "PostgreSQL DSN")
-	// Read the connection pool settings from command-line flags into the config struct.
-	// Notice the default values that we're using?
-	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
-	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
-	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
-
-	flag.StringVar(&cfg.jwt.accessTokenSecret, "access-token-secret", funcs.LoadEnv("ACCESS_TOKEN_SECRET"), "secret key for access token")
-	flag.StringVar(&cfg.jwt.refreshTokenSecret, "refresh-token-secret", funcs.LoadEnv("REFRESH_TOKEN_SECRET"), "secret key for refresh token")
-
-	flag.StringVar(&cfg.smtp.host, "smtp-host", "smtp.gmail.com", "smtp host")
-	flag.IntVar(&cfg.smtp.port, "smtp-port", 587, "smtp port")
-	flag.StringVar(&cfg.smtp.username, "smtp-username", funcs.LoadEnv("SMTP_USERNAME"), "smtp username")
-	flag.StringVar(&cfg.smtp.password, "smtp-password", funcs.LoadEnv("SMTP_PASSWORD"), "smtp password")
-	flag.StringVar(&cfg.smtp.from, "smtp-from", "OfferLand <contact@offerland.cc>", "smtp sender")
-
-	flag.Parse()
 
 	var f *os.File
 	currDir, _ := os.Getwd()
 	logPath := path.Join(currDir, "logger.log")
-	f, err := os.OpenFile(logPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+	f, err = os.OpenFile(logPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -157,7 +112,7 @@ func main() {
 	// Write logs to stdout
 	logger := leveledlog.NewLogger(os.Stdout, leveledlog.LevelAll, true)
 
-	db, err := database.New(cfg.db.dsn, cfg.db.automigrate, cfg.db.maxOpenConns, cfg.db.maxIdleConns, cfg.db.maxIdleTime)
+	db, err := database.New(cfg.DB_DSN, cfg.DB_AUTOMIGRATE, cfg.DB_MAX_OPEN_CONNS, cfg.DB_MAX_IDLE_CONNS, cfg.DB_MAX_IDLE_TIME)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -165,7 +120,7 @@ func main() {
 	// main() function exits.
 	defer db.Close()
 
-	mailer := smtp.NewMailer(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.from)
+	mailer := smtp.NewMailer(cfg.SMTP_HOST, cfg.SMTP_PORT, cfg.SMTP_USERNAME, cfg.SMTP_PASSWORD, cfg.SMTP_FROM)
 
 	// Declare an instance of the application struct, containing the config struct and
 	// the logger.

@@ -32,7 +32,7 @@ func (app *application) authenticate(c *gin.Context) {
 
 	// Parse the JWT and extract the claims. This will return an error if the JWT
 	// contents doesn't match the signature (i.e. the token has been tampered with) // or the algorithm isn't valid.
-	claims, err := jwt.HMACCheck([]byte(token), []byte(app.config.jwt.accessTokenSecret))
+	claims, err := jwt.HMACCheck([]byte(token), []byte(app.config.ACCESS_TOKEN_SECRET))
 	if err != nil {
 		app.invalidAuthenticationToken(c.Writer, c.Request)
 		return
