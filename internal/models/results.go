@@ -21,7 +21,7 @@ type Result struct {
 }
 
 var (
-	ErrUserNotFound = errors.New("user not found")
+	ErrDuplicateResult = errors.New("duplicate result")
 )
 
 func (m *ResultModel) Delete(userID uuid.UUID) error {

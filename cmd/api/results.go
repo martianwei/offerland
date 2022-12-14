@@ -2,10 +2,12 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"offerland.cc/internal/models"
 	"offerland.cc/internal/request"
 	"offerland.cc/internal/response"
@@ -38,6 +40,17 @@ func (app *application) createResult(c *gin.Context) {
 	// Insert all results for this user
 	for _, admittedSchool := range input.AdmittedSchools {
 		err = app.models.Results.Insert(user.ID, admittedSchool.SchoolName, admittedSchool.MajorName, admittedSchool.AnnounceDate, "admitted", admittedSchool.Others)
+		if err, ok := err.(*pq.Error); ok {
+			if err.Code.Name() == "unique_violation" {
+				fmt.Println("duplicate record")
+				app.badRequest(c.Writer, c.Request, fmt.Errorf("duplicate record"))
+				return
+			} else {
+				app.serverError(c.Writer, c.Request, err)
+				return
+			}
+		}
+
 		if err != nil {
 			app.serverError(c.Writer, c.Request, err)
 			return
@@ -46,6 +59,17 @@ func (app *application) createResult(c *gin.Context) {
 
 	for _, rejectedSchool := range input.RejectedSchools {
 		err = app.models.Results.Insert(user.ID, rejectedSchool.SchoolName, rejectedSchool.MajorName, rejectedSchool.AnnounceDate, "rejected", rejectedSchool.Others)
+		if err, ok := err.(*pq.Error); ok {
+			if err.Code.Name() == "unique_violation" {
+				fmt.Println("duplicate record")
+				app.badRequest(c.Writer, c.Request, fmt.Errorf("duplicate record"))
+				return
+			} else {
+				app.serverError(c.Writer, c.Request, err)
+				return
+			}
+		}
+
 		if err != nil {
 			app.serverError(c.Writer, c.Request, err)
 			return
@@ -99,6 +123,7 @@ func (app *application) getUserResults(c *gin.Context) {
 
 func (app *application) getAllResults(c *gin.Context) {
 	results, err := app.models.Results.GetAll()
+	fmt.Println("results", results)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -127,8 +152,13 @@ func (app *application) getAllResults(c *gin.Context) {
 
 		user, err := app.models.Users.Get(userID)
 		if err != nil {
-			app.serverError(c.Writer, c.Request, err)
-			return
+			switch {
+			case errors.Is(err, models.ErrRecordNotFound):
+				continue
+			default:
+				app.serverError(c.Writer, c.Request, err)
+				return
+			}
 		}
 		resultsResponse = append(resultsResponse, map[string]interface{}{
 			"user_id":          userID,
@@ -138,6 +168,7 @@ func (app *application) getAllResults(c *gin.Context) {
 		})
 	}
 
+	fmt.Println("resultsResponse", resultsResponse)
 	err = response.JSON(c.Writer, http.StatusOK, envelope{"results": resultsResponse})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
