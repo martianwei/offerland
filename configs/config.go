@@ -1,16 +1,15 @@
 package configs
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	PORT          int    `mapstructure:"PORT"`
-	ENV           string `mapstructure:"ENV"`
-	REACT_APP_URL string `mapstructure:"REACT_APP_API_URL"`
+	PORT         int    `mapstructure:"PORT"`
+	ENV          string `mapstructure:"ENV"`
+	FRONTEND_URL string `mapstructure:"FRONTEND_URL"`
 
 	DB_DSN            string `mapstructure:"DB_DSN"`
 	DB_AUTOMIGRATE    bool   `mapstructure:"DB_AUTOMIGRATE"`
@@ -33,18 +32,9 @@ type Config struct {
 }
 
 func LoadConfig(path string) (config *Config, err error) {
-	if os.Getenv("ENV") == "dev" || os.Getenv("ENV") == "" {
-		viper.AddConfigPath(path)
-		viper.SetConfigName(".env")
-		viper.SetConfigType("env")
-		if err = viper.ReadInConfig(); err != nil {
-			return nil, err
-		}
-	}
-
 	viper.SetDefault("PORT", 8080)
 	viper.SetDefault("ENV", "dev")
-	viper.SetDefault("REACT_APP_URL", "http://localhost:3000")
+	viper.SetDefault("FRONTEND_URL", "http://localhost:3000")
 
 	viper.SetDefault("DB_DSN", "")
 	viper.SetDefault("DB_AUTOMIGRATE", true)
@@ -65,12 +55,20 @@ func LoadConfig(path string) (config *Config, err error) {
 
 	viper.SetDefault("GOOGLE_CLIENT_ID", "")
 
+	if os.Getenv("ENV") == "dev" || os.Getenv("ENV") == "" {
+		viper.AddConfigPath(path)
+		viper.SetConfigName(".env")
+		viper.SetConfigType("env")
+		if err = viper.ReadInConfig(); err != nil {
+			return nil, err
+		}
+	}
+
 	viper.AutomaticEnv()
 
 	if err = viper.Unmarshal(&config); err != nil {
 		return nil, err
 	}
 
-	fmt.Println("Config loaded", config)
 	return config, nil
 }
