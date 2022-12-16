@@ -21,7 +21,6 @@ func (app *application) refreshToken(c *gin.Context) {
 	// check if refresh token is valid and match database
 	claims, err := jwt.HMACCheck([]byte(refreshTokenCookie), []byte(app.config.REFRESH_TOKEN_SECRET))
 	if err != nil {
-
 		app.invalidAuthenticationToken(c.Writer, c.Request)
 		return
 	}
