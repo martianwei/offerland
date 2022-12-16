@@ -12,12 +12,6 @@ import (
 )
 
 func (app *application) authenticate(c *gin.Context) {
-	// If path is /refresh_token, skip authentication
-	if c.Request.URL.Path == "/auth/refresh_token" {
-		c.Next()
-		return
-	}
-
 	c.Header("Vary", "Authorization")
 	authorizationHeader := c.GetHeader("Authorization")
 
