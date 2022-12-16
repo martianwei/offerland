@@ -299,11 +299,6 @@ func (app *application) GoogleLogin(c *gin.Context) {
 }
 
 func (app *application) Logout(c *gin.Context) {
-	user := app.contextGetUser(c.Request)
-	if user == nil {
-		return
-	}
-
 	// Remove the refresh token cookie from the user's browser.
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:    "REFRESH_TOKEN",
@@ -407,7 +402,7 @@ func (app *application) userForgotPassword(c *gin.Context) {
 	app.background(func() {
 		data := map[string]any{
 			"username":  user.Username,
-			"resetLink": fmt.Sprintf("%s/reset-forgot-password/%s", app.config.REACT_APP_URL, token.Plaintext),
+			"resetLink": fmt.Sprintf("%s/reset-forgot-password/%s", app.config.FRONTEND_URL, token.Plaintext),
 		}
 
 		err = app.mailer.Send(user.Email, data, "user_forgot_password.tmpl")

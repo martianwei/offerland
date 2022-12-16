@@ -42,7 +42,6 @@ func (app *application) createResult(c *gin.Context) {
 		err = app.models.Results.Insert(user.ID, admittedSchool.SchoolName, admittedSchool.MajorName, admittedSchool.AnnounceDate, "admitted", admittedSchool.Others)
 		if err, ok := err.(*pq.Error); ok {
 			if err.Code.Name() == "unique_violation" {
-				fmt.Println("duplicate record")
 				app.badRequest(c.Writer, c.Request, fmt.Errorf("duplicate record"))
 				return
 			} else {
@@ -61,7 +60,6 @@ func (app *application) createResult(c *gin.Context) {
 		err = app.models.Results.Insert(user.ID, rejectedSchool.SchoolName, rejectedSchool.MajorName, rejectedSchool.AnnounceDate, "rejected", rejectedSchool.Others)
 		if err, ok := err.(*pq.Error); ok {
 			if err.Code.Name() == "unique_violation" {
-				fmt.Println("duplicate record")
 				app.badRequest(c.Writer, c.Request, fmt.Errorf("duplicate record"))
 				return
 			} else {
@@ -123,7 +121,6 @@ func (app *application) getUserResults(c *gin.Context) {
 
 func (app *application) getAllResults(c *gin.Context) {
 	results, err := app.models.Results.GetAll()
-	fmt.Println("results", results)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -168,7 +165,6 @@ func (app *application) getAllResults(c *gin.Context) {
 		})
 	}
 
-	fmt.Println("resultsResponse", resultsResponse)
 	err = response.JSON(c.Writer, http.StatusOK, envelope{"results": resultsResponse})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
