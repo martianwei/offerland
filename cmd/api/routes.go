@@ -62,7 +62,7 @@ func (app *application) SetupRouter() *gin.Engine {
 	// postsHandler := handler.NewPostHandler(app.db)
 	post := router.Group("/posts")
 	{
-		post.GET("/:id", app.authenticate, app.GetPost)
+		post.GET("/:id", app.GetPost)
 		post.GET("", app.GetAllPosts)
 		post.POST("", app.authenticate, app.CreatePost)
 		post.PUT("/:id", app.authenticate, app.UpdatePost)
