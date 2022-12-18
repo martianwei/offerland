@@ -453,7 +453,7 @@ func (app *application) userForgotPasswordReset(c *gin.Context) { // Parse the p
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
-			app.invalidToken(c.Writer, c.Request)
+			app.invalidAuthenticationToken(c.Writer, c.Request)
 		default:
 			app.serverError(c.Writer, c.Request, err)
 		}

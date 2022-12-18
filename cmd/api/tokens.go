@@ -13,7 +13,6 @@ func (app *application) refreshToken(c *gin.Context) {
 	// get refresh token from cookie
 	refreshTokenCookie, err := c.Cookie("REFRESH_TOKEN")
 	if err != nil {
-
 		app.invalidAuthenticationToken(c.Writer, c.Request)
 		return
 	}

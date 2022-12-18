@@ -34,7 +34,7 @@ func (app *application) authenticate(c *gin.Context) {
 
 	// Check if the JWT is still valid at this moment in time.
 	if !claims.Valid(time.Now()) {
-		app.expiredToken(c.Writer, c.Request)
+		app.invalidAuthenticationToken(c.Writer, c.Request)
 		c.Abort()
 		return
 	}

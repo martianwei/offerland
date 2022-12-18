@@ -47,11 +47,6 @@ func (app *application) failedValidation(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-func (app *application) invalidToken(w http.ResponseWriter, r *http.Request) {
-	message := "Your token is invalid or has expired, please try again"
-	app.errorMessage(w, r, http.StatusUnauthorized, message, nil)
-}
-
 func (app *application) invalidCredentials(w http.ResponseWriter, r *http.Request) {
 	message := "invalid email address or password"
 	app.errorMessage(w, r, http.StatusUnauthorized, message, nil)
@@ -59,11 +54,6 @@ func (app *application) invalidCredentials(w http.ResponseWriter, r *http.Reques
 
 func (app *application) inactiveAccount(w http.ResponseWriter, r *http.Request) {
 	message := "your user account must be activated to access this resource"
-	app.errorMessage(w, r, http.StatusForbidden, message, nil)
-}
-
-func (app *application) expiredToken(w http.ResponseWriter, r *http.Request) {
-	message := "Your token has expired, please try again"
 	app.errorMessage(w, r, http.StatusForbidden, message, nil)
 }
 
