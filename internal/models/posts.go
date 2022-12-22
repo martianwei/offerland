@@ -13,7 +13,6 @@ import (
 
 type Post struct {
 	PostID    uuid.UUID `json:"post_id"`
-	Title     string    `json:"title"`
 	AddResult bool      `json:"add_result"`
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
@@ -29,7 +28,6 @@ func (m PostModel) GetPostByID(postID uuid.UUID) (Post, error) {
 	var query string
 	cols := []string{
 		"post_id",
-		"title",
 		"add_result",
 		"body",
 		"created_at",
@@ -46,7 +44,6 @@ func (m PostModel) GetPostByID(postID uuid.UUID) (Post, error) {
 
 	err := m.DB.QueryRowContext(ctx, query, postID).Scan(
 		&post.PostID,
-		&post.Title,
 		&post.AddResult,
 		&post.Body,
 		&post.CreatedAt,
@@ -106,7 +103,6 @@ func (m PostModel) Upsert(post *Post) error {
 	var query string
 	cols := []string{
 		"post_id",
-		"title",
 		"add_result",
 		"body",
 		"user_id",
@@ -153,7 +149,6 @@ func (m PostModel) GetAllPosts(filter map[string][]string) ([]Post, error) {
 	var query string
 	cols := []string{
 		"post_id",
-		"title",
 		"add_result",
 		"body",
 		"created_at",
@@ -196,7 +191,6 @@ func (m PostModel) GetAllPosts(filter map[string][]string) ([]Post, error) {
 		var post Post
 		err := rows.Scan(
 			&post.PostID,
-			&post.Title,
 			&post.AddResult,
 			&post.Body,
 			&post.CreatedAt,

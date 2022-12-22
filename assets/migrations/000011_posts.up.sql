@@ -1,6 +1,5 @@
 CREATE TABLE IF NOT EXISTS posts (
     post_id uuid NOT NULL PRIMARY KEY,
-    title VARCHAR(100) NOT NULL,
     add_result BOOLEAN NOT NULL,
     body text NOT NULL,
     created_at timestamp(0) with time zone NOT NULL DEFAULT NOW(),
