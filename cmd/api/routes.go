@@ -14,11 +14,8 @@ func (app *application) SetupRouter() *gin.Engine {
 		AllowCredentials: true,
 	}))
 
-	// Return pong if the server is up.
 	router.GET("/ping", app.pong)
 
-	// If context has user, return user.
-	// If context has no user, return AnonymousUser.
 	router.GET("/whoami", app.authenticate, app.whoAmI)
 
 	auth := router.Group("/auth")
@@ -48,18 +45,6 @@ func (app *application) SetupRouter() *gin.Engine {
 		result.GET("", app.authenticate, app.getAllResults)
 	}
 
-	// _api := router.Group("/_api")
-	// {
-	// 	_api.GET("/schools", app.getSchools)
-	// 	_api.GET("/majors", app.getMajors)
-	// 	_api.GET("/majors/:school", app.getMajorsBySchool)
-	// }
-
-	// user := router.Group("/users")
-	// {
-	// 	user.GET("/:id", app.GetUser)
-	// }
-	// postsHandler := handler.NewPostHandler(app.db)
 	post := router.Group("/posts")
 	{
 		post.GET("/:id", app.GetPost)
@@ -69,16 +54,11 @@ func (app *application) SetupRouter() *gin.Engine {
 		post.DELETE("/:id", app.authenticate, app.DeletePost)
 	}
 
-	// application_result := router.Group("/application_results")
+	// _api := router.Group("/_api")
 	// {
-	// 	application_result.GET("/:user_id", app.GetApplicationResults)
-	// 	application_result.POST("/", app.CreateApplicationResult)
-	// 	application_result.PUT("/", app.UpdateApplicationResult)
-	// 	application_result.DELETE("/",app.DeleteApplicationResult)
-	// }
-	// school := router.Group("/school")
-	// {
-	// 	school.GET("", app.getSchools)
+	// 	_api.GET("/schools", app.getSchools)
+	// 	_api.GET("/majors", app.getMajors)
+	// 	_api.GET("/majors/:school", app.getMajorsBySchool)
 	// }
 
 	return router
