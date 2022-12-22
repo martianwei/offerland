@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +18,6 @@ func (app *application) CreatePost(c *gin.Context) {
 		return
 	}
 	var input struct {
-		Title     string `json:"title" binding:"required"`
 		Body      string `json:"body" binding:"required"`
 		AddResult bool   `json:"add_result" binding:"required"`
 	}
@@ -30,7 +30,6 @@ func (app *application) CreatePost(c *gin.Context) {
 
 	post := &models.Post{
 		PostID:    uuid.New(),
-		Title:     input.Title,
 		AddResult: input.AddResult,
 		Body:      input.Body,
 		UserID:    user.ID,
@@ -54,7 +53,6 @@ func (app *application) UpdatePost(c *gin.Context) {
 		return
 	}
 	var input struct {
-		Title     string `json:"title" binding:"required"`
 		Body      string `json:"body" binding:"required"`
 		AddResult bool   `json:"add_result" binding:"required"`
 	}
@@ -67,7 +65,6 @@ func (app *application) UpdatePost(c *gin.Context) {
 
 	post := &models.Post{
 		PostID:    postID,
-		Title:     input.Title,
 		AddResult: input.AddResult,
 		Body:      input.Body,
 		UserID:    user.ID,
@@ -82,6 +79,7 @@ func (app *application) UpdatePost(c *gin.Context) {
 	}
 	err = app.models.Posts.Upsert(post)
 	if err != nil {
+		fmt.Println("Upsert error: ", err)
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
