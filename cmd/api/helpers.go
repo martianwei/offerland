@@ -16,6 +16,24 @@ func (app *application) pong(c *gin.Context) {
 	c.String(200, "pong")
 }
 
+func (app *application) checkUsernameHelper(username string) (bool, error) {
+	_, err := app.models.Users.GetByUsername(username)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (app *application) checkEmailHelper(email string) (bool, error) {
+	_, err := app.models.Users.GetByEmail(email)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (app *application) userVerification(c *gin.Context) *models.User {
 	// Parse the plaintext activation token from the request body.
 	var input struct {
@@ -52,6 +70,7 @@ func (app *application) userVerification(c *gin.Context) *models.User {
 		case errors.Is(err, models.ErrRecordNotFound):
 			app.notFound(c.Writer, c.Request)
 		default:
+			fmt.Println("get for activation token error", err)
 			app.serverError(c.Writer, c.Request, err)
 		}
 		return nil
@@ -65,6 +84,7 @@ func (app *application) userVerification(c *gin.Context) *models.User {
 			input.Validator.AddFieldError("passcode", "invalid or expired passcode")
 			app.failedValidation(c.Writer, c.Request, input.Validator)
 		default:
+			fmt.Println("validate error", err)
 			app.serverError(c.Writer, c.Request, err)
 		}
 		return nil
@@ -79,6 +99,7 @@ func (app *application) userVerification(c *gin.Context) *models.User {
 	// user.
 	err = app.models.Tokens.DeleteActivationTokensForUser(user.ID)
 	if err != nil {
+		fmt.Println("delete activation tokens for user error", err)
 		app.serverError(c.Writer, c.Request, err)
 		return nil
 	}

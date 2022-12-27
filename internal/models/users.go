@@ -6,8 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 var AnonymousUser = &User{}
@@ -17,7 +15,7 @@ var AnonymousUser = &User{}
 // any output when we encode it to JSON. Also notice that the Password field uses the
 // custom password type defined below.
 type User struct {
-	ID        uuid.UUID `json:"user_id"`
+	ID        string    `json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
 	Username  string    `json:"username"`
 	Photo     string    `json:"photo"`
@@ -85,7 +83,7 @@ func (m UserModel) Insert(user *User) error {
 	return nil
 }
 
-func (m UserModel) Get(user_id uuid.UUID) (*User, error) {
+func (m UserModel) Get(user_id string) (*User, error) {
 	query := `
 		SELECT user_id, created_at, username, email, COALESCE(password, ''), activated, version
 		FROM users 
@@ -117,7 +115,7 @@ func (m UserModel) Get(user_id uuid.UUID) (*User, error) {
 	return &user, nil
 }
 
-func (m UserModel) Delete(user_id uuid.UUID) error {
+func (m UserModel) Delete(user_id string) error {
 	query := `
 		DELETE FROM users
 		WHERE user_id = $1`
@@ -177,6 +175,12 @@ func (m UserModel) GetByUsername(username string) (*User, error) {
 			return nil, err
 		}
 	}
+
+	if !user.Activated {
+		m.Delete(user.ID)
+		return nil, ErrRecordNotFound
+	}
+
 	return &user, nil
 }
 

@@ -8,7 +8,7 @@ BEGIN
 END$$;
 
 CREATE TABLE IF NOT EXISTS users (
-    user_id uuid PRIMARY KEY,
+    user_id varchar(255) PRIMARY KEY,
     created_at timestamp(0) with time zone NOT NULL DEFAULT NOW(),
     username varchar(64) NOT NULL,
     email varchar(255) UNIQUE NOT NULL,

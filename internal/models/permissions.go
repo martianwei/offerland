@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
@@ -63,7 +62,7 @@ func (m PermissionModel) GetAllForUser(userID int64) (Permissions, error) {
 // Add the provided permission codes for a specific user. Notice that we're using a
 // variadic parameter for the codes so that we can assign multiple permissions in a
 // single call.
-func (m PermissionModel) AddForUser(userID uuid.UUID, codes ...string) error {
+func (m PermissionModel) AddForUser(userID string, codes ...string) error {
 	query := `
 		INSERT INTO users_permissions
 		SELECT $1, permissions.id FROM permissions WHERE permissions.code = ANY($2)`

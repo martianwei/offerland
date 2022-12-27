@@ -29,6 +29,8 @@ type Config struct {
 	SMTP_FROM     string `mapstructure:"SMTP_FROM"`
 
 	GOOGLE_CLIENT_ID string `mapstructure:"GOOGLE_CLIENT_ID"`
+
+	FIREBASE_CONFIG string `mapstructure:"FIREBASE_CONFIG"`
 }
 
 func LoadConfig(path string) (config *Config, err error) {
@@ -54,6 +56,8 @@ func LoadConfig(path string) (config *Config, err error) {
 	viper.SetDefault("SMTP_FROM", "")
 
 	viper.SetDefault("GOOGLE_CLIENT_ID", "")
+
+	viper.SetDefault("FIREBASE_CONFIG", "")
 
 	if os.Getenv("ENV") == "dev" || os.Getenv("ENV") == "" {
 		viper.AddConfigPath(path)

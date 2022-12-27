@@ -21,10 +21,10 @@ func (app *application) SetupRouter() *gin.Engine {
 	auth := router.Group("/auth")
 	{
 		auth.POST("/signup", app.Signup)
-		auth.POST("/activate/:token", app.Activate)
+		auth.POST("/activate/:token", app.ActivateUser)
 
-		auth.GET("/check_username/:username", app.checkUsername)
-		auth.GET("/check_email/:email", app.checkEmail)
+		auth.GET("/check_username", app.checkUsername)
+		auth.GET("/check_email", app.checkEmail)
 		auth.GET("/check_author/:authorname", app.checkAuthor)
 
 		auth.POST("/login", app.Login)

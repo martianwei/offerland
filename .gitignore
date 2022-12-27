@@ -2,3 +2,4 @@
 *.log
 .vscode
 .prettierignore
+firebase.json

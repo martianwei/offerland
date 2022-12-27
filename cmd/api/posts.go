@@ -169,7 +169,7 @@ func (app *application) GetAllPosts(c *gin.Context) {
 			}
 			return
 		}
-		filter["user_id"] = []string{user.ID.String()}
+		filter["user_id"] = []string{user.ID}
 		delete(filter, "username")
 	}
 
