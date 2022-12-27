@@ -55,13 +55,17 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"os"
 	"path"
 	"sync"
 
+	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/auth"
 	_ "github.com/lib/pq"
+	"google.golang.org/api/option"
 	"offerland.cc/configs"
 	"offerland.cc/internal/database"
 	"offerland.cc/internal/leveledlog"
@@ -79,12 +83,13 @@ import (
 // and middleware. At the moment this only contains a copy of the config struct and a
 // logger, but it will grow to include a lot more as our build progresses.
 type application struct {
-	config *configs.Config
-	logger *leveledlog.Logger
-	models *models.Models
-	db     *sql.DB
-	mailer *smtp.Mailer
-	wg     sync.WaitGroup
+	config         *configs.Config
+	logger         *leveledlog.Logger
+	models         *models.Models
+	firebaseClient *auth.Client
+	db             *sql.DB
+	mailer         *smtp.Mailer
+	wg             sync.WaitGroup
 }
 
 func main() {
@@ -122,14 +127,23 @@ func main() {
 
 	mailer := smtp.NewMailer(cfg.SMTP_HOST, cfg.SMTP_PORT, cfg.SMTP_USERNAME, cfg.SMTP_PASSWORD, cfg.SMTP_FROM)
 
-	// Declare an instance of the application struct, containing the config struct and
-	// the logger.
+	opt := option.WithCredentialsFile(cfg.FIREBASE_CONFIG)
+	firebase, err := firebase.NewApp(context.Background(), nil, opt)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	firebaseClient, err := firebase.Auth(context.Background())
+	if err != nil {
+		log.Fatalf("error getting Auth client: %v\n", err)
+	}
+
 	app := &application{
-		config: cfg,
-		logger: logger,
-		models: models.NewModels(db),
-		db:     db,
-		mailer: mailer,
+		config:         cfg,
+		logger:         logger,
+		models:         models.NewModels(db),
+		firebaseClient: firebaseClient,
+		db:             db,
+		mailer:         mailer,
 	}
 
 	// Start the HTTP server

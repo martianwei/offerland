@@ -3,8 +3,6 @@ package models
 import (
 	"database/sql"
 	"errors"
-
-	"github.com/google/uuid"
 )
 
 type ResultModel struct {
@@ -12,19 +10,19 @@ type ResultModel struct {
 }
 
 type Result struct {
-	UserID       uuid.UUID `json:"user_id"`
-	SchoolName   string    `json:"school_name"`
-	MajorName    string    `json:"major_name"`
-	AnnounceDate string    `json:"announce_date"`
-	Status       string    `json:"status"`
-	Others       string    `json:"others"`
+	UserID       string `json:"user_id"`
+	SchoolName   string `json:"school_name"`
+	MajorName    string `json:"major_name"`
+	AnnounceDate string `json:"announce_date"`
+	Status       string `json:"status"`
+	Others       string `json:"others"`
 }
 
 var (
 	ErrDuplicateResult = errors.New("duplicate result")
 )
 
-func (m *ResultModel) Delete(userID uuid.UUID) error {
+func (m *ResultModel) Delete(userID string) error {
 	query := `
 		DELETE FROM user_to_results
 		WHERE user_id = $1
@@ -33,7 +31,7 @@ func (m *ResultModel) Delete(userID uuid.UUID) error {
 	return err
 }
 
-func (m *ResultModel) Insert(userID uuid.UUID, schoolName string, majorName string, announceDate string, status string, others string) error {
+func (m *ResultModel) Insert(userID string, schoolName string, majorName string, announceDate string, status string, others string) error {
 	// Insert only unique results
 	query := `
 		INSERT INTO user_to_results (user_id, school_name, major_name, announce_date, status, others)
@@ -44,7 +42,7 @@ func (m *ResultModel) Insert(userID uuid.UUID, schoolName string, majorName stri
 	return err
 }
 
-func (m *ResultModel) Get(userID uuid.UUID) ([]Result, error) {
+func (m *ResultModel) Get(userID string) ([]Result, error) {
 	query := `
 		SELECT user_id, school_name, major_name, announce_date, status, others
 		FROM user_to_results

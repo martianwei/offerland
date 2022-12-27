@@ -23,7 +23,7 @@ type TokenModel struct {
 type Token struct {
 	Plaintext string    `json:"token"` // The plaintext version of the token
 	Hash      []byte    `json:"-"`     // The hashed version of the token
-	UserID    uuid.UUID `json:"-"`     // The ID of the user the token is associated with
+	UserID    string    `json:"-"`     // The ID of the user the token is associated with
 	Passcode  string    `json:"passcode"`
 	Expiry    time.Time `json:"expiry"` // The expiry time for the token
 }
@@ -113,7 +113,7 @@ func (m *TokenModel) DeleteRefreshTokenByUserID(userID uuid.UUID) error {
 	return nil
 }
 
-func generateToken(userID uuid.UUID, ttl time.Duration) (*Token, error) {
+func generateToken(userID string, ttl time.Duration) (*Token, error) {
 	// Create a Token instance containing the user ID, expiry, and scope information.
 	// Notice that we add the provided ttl (time-to-live) duration parameter to the
 	// current time to get the expiry time?
@@ -192,7 +192,7 @@ func (m TokenModel) generatePasscode() (string, error) {
 	return string(buffer), nil
 }
 
-func (m TokenModel) NewActivationToken(userID uuid.UUID, ttl time.Duration) (*Token, error) {
+func (m TokenModel) NewActivationToken(userID string, ttl time.Duration) (*Token, error) {
 	// Generate a new passcode
 	passcode, err := m.generatePasscode()
 	if err != nil {
@@ -209,7 +209,7 @@ func (m TokenModel) NewActivationToken(userID uuid.UUID, ttl time.Duration) (*To
 	return token, err
 }
 
-func (m TokenModel) NewResetToken(userID uuid.UUID, ttl time.Duration) (*Token, error) {
+func (m TokenModel) NewResetToken(userID string, ttl time.Duration) (*Token, error) {
 	// Generate a new token
 	token, err := generateToken(userID, ttl)
 	if err != nil {
@@ -268,7 +268,7 @@ func (m TokenModel) InsertResetToken(token *Token) error {
 }
 
 // DeleteAllForUser() deletes all tokens for a specific user and scope.
-func (m TokenModel) DeleteActivationTokensForUser(userID uuid.UUID) error {
+func (m TokenModel) DeleteActivationTokensForUser(userID string) error {
 	query := `
 		DELETE FROM activation_tokens
 		WHERE user_id = $1`
@@ -279,7 +279,7 @@ func (m TokenModel) DeleteActivationTokensForUser(userID uuid.UUID) error {
 	return err
 }
 
-func (m TokenModel) DeleteResetTokensForUser(userID uuid.UUID) error {
+func (m TokenModel) DeleteResetTokensForUser(userID string) error {
 	query := `
 		DELETE FROM reset_tokens
 		WHERE user_id = $1`

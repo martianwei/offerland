@@ -1,18 +1,22 @@
 package password
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 func Hash(plaintextPassword string) (string, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
-	if err != nil {
-		return "", err
-	}
-
-	return string(hashedPassword), nil
+	// hashedPassword, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
+	// if err != nil {
+	// 	return "", err
+	// }
+	hasher := sha256.New()
+	hasher.Write([]byte(plaintextPassword))
+	hashedPassword := hex.EncodeToString(hasher.Sum(nil))
+	return hashedPassword, nil
 }
 
 func Matches(plaintextPassword, hashedPassword string) (bool, error) {

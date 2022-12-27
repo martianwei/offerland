@@ -16,7 +16,7 @@ type Post struct {
 	AddResult bool      `json:"add_result"`
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
-	UserID    uuid.UUID `json:"user_id"`
+	UserID    string    `json:"user_id"`
 }
 
 type PostModel struct {
@@ -58,7 +58,7 @@ func (m PostModel) GetPostByID(postID uuid.UUID) (Post, error) {
 }
 
 func (m PostModel) CheckPostIsMine(post *Post) (bool, error) {
-	var postOwner uuid.UUID
+	var postOwner string
 
 	var query = `
 		SELECT (user_id)

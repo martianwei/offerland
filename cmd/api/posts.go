@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -79,7 +78,6 @@ func (app *application) UpdatePost(c *gin.Context) {
 	}
 	err = app.models.Posts.Upsert(post)
 	if err != nil {
-		fmt.Println("Upsert error: ", err)
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
@@ -169,7 +167,7 @@ func (app *application) GetAllPosts(c *gin.Context) {
 			}
 			return
 		}
-		filter["user_id"] = []string{user.ID.String()}
+		filter["user_id"] = []string{user.ID}
 		delete(filter, "username")
 	}
 

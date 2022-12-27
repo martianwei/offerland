@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"offerland.cc/internal/models"
 	"offerland.cc/internal/request"
@@ -127,7 +126,7 @@ func (app *application) getAllResults(c *gin.Context) {
 	}
 
 	// Group results by user
-	resultsByUser := map[uuid.UUID][]models.Result{}
+	resultsByUser := map[string][]models.Result{}
 
 	for _, result := range results {
 		resultsByUser[result.UserID] = append(resultsByUser[result.UserID], result)

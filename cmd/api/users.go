@@ -7,9 +7,12 @@ import (
 	"net/http"
 	"time"
 
+	"firebase.google.com/go/v4/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"google.golang.org/api/idtoken"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/oauth2/v2"
+	"google.golang.org/api/option"
 	"offerland.cc/internal/models"
 	"offerland.cc/internal/password"
 	"offerland.cc/internal/request"
@@ -65,25 +68,13 @@ func (app *application) Signup(c *gin.Context) {
 		}
 	}
 
-	// Check if the username is already in use
-	user, err = app.models.Users.GetByUsername(input.Username)
+	exists, err := app.checkUsernameHelper(input.Username)
 	if err != nil && !errors.Is(err, models.ErrRecordNotFound) {
 		app.serverError(c.Writer, c.Request, err)
-		return
 	}
 
-	// If the user exists
-	if user != nil && user.Activated {
+	if exists {
 		input.Validator.AddFieldError("username", "This username is already in use")
-	}
-
-	// If the user exists but is not activated, delete the existing user record
-	if user != nil && !user.Activated {
-		err = app.models.Users.Delete(user.ID)
-		if err != nil {
-			app.serverError(c.Writer, c.Request, err)
-			return
-		}
 	}
 
 	input.Validator.CheckField(validator.Matches(input.Email, validator.RgxEmail), "email", "Must be a valid email address")
@@ -98,13 +89,14 @@ func (app *application) Signup(c *gin.Context) {
 
 	// Create the new user record
 	user = &models.User{
-		ID:        uuid.New(),
+		ID:        uuid.New().String(),
 		Username:  input.Username,
 		Email:     input.Email,
 		Activated: false,
 	}
 
 	passwordHash, err := password.Hash(input.Password)
+
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 		return
@@ -152,6 +144,52 @@ func (app *application) Signup(c *gin.Context) {
 	}
 }
 
+func (app *application) ActivateUser(c *gin.Context) {
+	user := app.userVerification(c)
+	if user == nil {
+		return
+	}
+
+	params := (&auth.UserToCreate{}).
+		Email(user.Email).
+		EmailVerified(true).
+		Password(user.Password).
+		DisplayName(user.Username).
+		PhotoURL("https://cdn2.iconfinder.com/data/icons/random-outline-3/48/random_14-512.png").
+		Disabled(false)
+
+	newUserRecord, err := app.firebaseClient.CreateUser(context.Background(), params)
+	if err != nil {
+		if err.Error() == "user with the provided email already exists" {
+			app.badRequest(c.Writer, c.Request, err)
+		} else {
+			app.serverError(c.Writer, c.Request, err)
+		}
+		return
+	}
+
+	// Delete old user record and add new user record to database
+	err = app.models.Users.Delete(user.ID)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+
+	user.ID = newUserRecord.UID
+	user.Activated = true
+
+	err = app.models.Users.Insert(user)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+		return
+	}
+
+	err = response.JSON(c.Writer, http.StatusCreated, nil)
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+	}
+}
+
 func (app *application) Login(c *gin.Context) {
 	var input struct {
 		Email    string `json:"email"`
@@ -192,27 +230,7 @@ func (app *application) Login(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(
-		user.ID,
-		app.config.ACCESS_TOKEN_SECRET, app.config.ACCESS_TOKEN_TTL,
-		app.config.REFRESH_TOKEN_SECRET, app.config.REFRESH_TOKEN_TTL,
-	)
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-		return
-	}
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "REFRESH_TOKEN",
-		Value:    refreshToken.Token,
-		Path:     "/",
-		Domain:   "",
-		MaxAge:   int(refreshToken.TTL.Seconds()),
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-	err = response.JSON(c.Writer, http.StatusOK, envelope{"access_token": accessToken.Token})
+	err = response.JSON(c.Writer, http.StatusOK, nil)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}
@@ -220,9 +238,9 @@ func (app *application) Login(c *gin.Context) {
 
 func (app *application) GoogleLogin(c *gin.Context) {
 	var input struct {
-		ClientID  string              `json:"client_id"`
-		IDToken   string              `json:"id_token"`
-		Validator validator.Validator `json:"-"`
+		FirebaseID string              `json:"firebase_id"`
+		IDToken    string              `json:"id_token"`
+		Validator  validator.Validator `json:"-"`
 	}
 
 	err := request.DecodeJSON(c.Writer, c.Request, &input)
@@ -230,31 +248,35 @@ func (app *application) GoogleLogin(c *gin.Context) {
 		app.badRequest(c.Writer, c.Request, err)
 		return
 	}
-	payload, err := idtoken.Validate(context.Background(), input.IDToken, app.config.GOOGLE_CLIENT_ID)
 	if err != nil {
-		panic(err)
+		app.serverError(c.Writer, c.Request, err)
+	}
+	oauth2Service, err := oauth2.NewService(context.Background(), option.WithoutAuthentication())
+
+	if err != nil {
+		app.serverError(c.Writer, c.Request, err)
+	}
+	userInfoService := oauth2.NewUserinfoV2MeService(oauth2Service)
+	userInfo, err := userInfoService.Get().Do(googleapi.QueryParameter("access_token", input.IDToken))
+	if err != nil {
+		// e, _ := err.(*googleapi.Error)
+		// fmt.Println(e.Message)
+		app.serverError(c.Writer, c.Request, err)
 	}
 
-	input.Validator.CheckField(payload.Claims["aud"].(string) == app.config.GOOGLE_CLIENT_ID, "Server", "ClientID is not valid")
-	input.Validator.CheckField(payload.Claims["iss"].(string) == "https://accounts.google.com", "Server", "ISS is not valid")
-
-	if input.Validator.HasErrors() {
-		app.failedValidation(c.Writer, c.Request, input.Validator)
-		return
-	}
 	var user *models.User
-	user, err = app.models.Users.GetByEmail(payload.Claims["email"].(string))
+	user, err = app.models.Users.GetByEmail(userInfo.Email)
 	if err != nil && !errors.Is(err, models.ErrRecordNotFound) {
 		app.serverError(c.Writer, c.Request, err)
 		return
 	}
 	if user == nil {
 		user = &models.User{
-			ID:        uuid.New(),
-			Username:  payload.Claims["name"].(string),
-			Email:     payload.Claims["email"].(string),
+			ID:        input.FirebaseID,
+			Username:  userInfo.Name,
+			Email:     userInfo.Email,
 			ISS:       "google",
-			SUB:       payload.Claims["sub"].(string),
+			SUB:       userInfo.Id,
 			Activated: true,
 		}
 
@@ -271,28 +293,7 @@ func (app *application) GoogleLogin(c *gin.Context) {
 		}
 	}
 
-	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(
-		user.ID,
-		app.config.ACCESS_TOKEN_SECRET, app.config.ACCESS_TOKEN_TTL,
-		app.config.REFRESH_TOKEN_SECRET, app.config.REFRESH_TOKEN_TTL,
-	)
-
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-		return
-	}
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "REFRESH_TOKEN",
-		Value:    refreshToken.Token,
-		Path:     "/",
-		Domain:   "",
-		MaxAge:   int(refreshToken.TTL.Seconds()),
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-	err = response.JSON(c.Writer, http.StatusOK, envelope{"access_token": accessToken.Token})
+	err = response.JSON(c.Writer, http.StatusOK, nil)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}
@@ -310,58 +311,6 @@ func (app *application) Logout(c *gin.Context) {
 
 	// Send a 204 No Content response.
 	c.Status(http.StatusNoContent)
-}
-
-func (app *application) Activate(c *gin.Context) {
-	user := app.userVerification(c)
-	if user == nil {
-		return
-	}
-
-	// Update the user's activation status.
-	user.Activated = true
-	// Save the updated user record in our database, checking for any edit conflicts in // the same way that we did for our movie records.
-	err := app.models.Users.Update(user)
-	if err != nil {
-		switch {
-		case errors.Is(err, models.ErrEditConflict):
-			err = app.models.Tokens.DeleteActivationTokensForUser(user.ID)
-			if err != nil {
-				app.serverError(c.Writer, c.Request, err)
-				return
-			}
-			app.editConflict(c.Writer, c.Request)
-		default:
-			app.serverError(c.Writer, c.Request, err)
-		}
-		return
-	}
-
-	accessToken, refreshToken, err := app.models.Tokens.NewTokenPair(
-		user.ID,
-		app.config.ACCESS_TOKEN_SECRET, app.config.ACCESS_TOKEN_TTL,
-		app.config.REFRESH_TOKEN_SECRET, app.config.REFRESH_TOKEN_TTL,
-	)
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-		return
-	}
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "REFRESH_TOKEN",
-		Value:    refreshToken.Token,
-		Path:     "/",
-		Domain:   "",
-		MaxAge:   int(refreshToken.TTL),
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-
-	err = response.JSON(c.Writer, http.StatusOK, envelope{"access_token": accessToken.Token})
-	if err != nil {
-		app.serverError(c.Writer, c.Request, err)
-	}
 }
 
 func (app *application) userForgotPassword(c *gin.Context) {
@@ -493,22 +442,13 @@ func (app *application) userForgotPasswordReset(c *gin.Context) { // Parse the p
 }
 
 func (app *application) checkEmail(c *gin.Context) {
-	email := c.Param("email")
-	user, err := app.models.Users.GetByEmail(email)
-	// if user not activated, then email is available
-	if user != nil && !user.Activated {
-		err = response.JSON(c.Writer, http.StatusOK, envelope{"available": true})
-		if err != nil {
-			app.serverError(c.Writer, c.Request, err)
-		}
-		return
-	}
+	q := c.Request.URL.Query()
 
-	// if user not found, then email is available
+	_, err := app.checkEmailHelper(q.Get("email"))
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
-			err = response.JSON(c.Writer, http.StatusOK, envelope{"available": true})
+			err = response.JSON(c.Writer, http.StatusOK, envelope{"exists": false})
 			if err != nil {
 				app.serverError(c.Writer, c.Request, err)
 			}
@@ -517,29 +457,21 @@ func (app *application) checkEmail(c *gin.Context) {
 		}
 		return
 	}
-	err = response.JSON(c.Writer, http.StatusOK, envelope{"available": false})
+
+	err = response.JSON(c.Writer, http.StatusOK, envelope{"exists": true})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}
 }
 
 func (app *application) checkUsername(c *gin.Context) {
-	username := c.Param("username")
-	user, err := app.models.Users.GetByUsername(username)
-	// if user not activated, then username is available
-	if user != nil && !user.Activated {
-		err = response.JSON(c.Writer, http.StatusOK, envelope{"available": true})
-		if err != nil {
-			app.serverError(c.Writer, c.Request, err)
-		}
-		return
-	}
+	q := c.Request.URL.Query()
 
-	// if user not found, then username is available
+	_, err := app.checkUsernameHelper(q.Get("username"))
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
-			err = response.JSON(c.Writer, http.StatusOK, envelope{"available": true})
+			err = response.JSON(c.Writer, http.StatusOK, envelope{"exists": false})
 			if err != nil {
 				app.serverError(c.Writer, c.Request, err)
 			}
@@ -549,7 +481,7 @@ func (app *application) checkUsername(c *gin.Context) {
 		return
 	}
 
-	err = response.JSON(c.Writer, http.StatusOK, envelope{"available": false})
+	err = response.JSON(c.Writer, http.StatusOK, envelope{"exists": true})
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
 	}
