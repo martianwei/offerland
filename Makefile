@@ -38,7 +38,7 @@ db/migrations/new:
 .PHONY: db/migrations/up 
 db/migrations/up: confirm
 	@echo 'Running up migrations...'
-	migrate -path ./assets/migrations -database ${DB_DSN} up
+	migrate -path ./assets/migrations -database ${DB_HOSTNAME} up
 
 ## db/migrations/down: apply all down database migrations
 .PHONY: db/migrations/down

@@ -124,11 +124,6 @@ func (app *application) GetPost(c *gin.Context) {
 		return
 	}
 
-	if err != nil {
-		app.badRequest(c.Writer, c.Request, err)
-		return
-	}
-
 	post, err := app.models.Posts.GetPostByID(postID)
 	if err != nil {
 		app.serverError(c.Writer, c.Request, err)
